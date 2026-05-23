@@ -32,6 +32,8 @@ export interface CanvasElement {
   flipH?: boolean;
   flipV?: boolean;
   locked?: boolean;
+  bold?: boolean;
+  italic?: boolean;
   _typing?: boolean;
 }
 
@@ -54,6 +56,22 @@ interface CanvasState {
   showMini: boolean;
   clipboard: CanvasElement[] | null;
   history: { past: string[]; future: string[] };
+  textDefaults: {
+    fontSize: number;
+    fontFamily: string;
+    stroke: string;
+    bold: boolean;
+    italic: boolean;
+    align: 'left' | 'center' | 'right';
+  };
+  setTextDefaults: (defaults: Partial<{
+    fontSize: number;
+    fontFamily: string;
+    stroke: string;
+    bold: boolean;
+    italic: boolean;
+    align: 'left' | 'center' | 'right';
+  }>) => void;
 
   setBoardId: (id: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
@@ -102,6 +120,19 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   showMini: true,
   clipboard: null,
   history: { past: [], future: [] },
+  textDefaults: {
+    fontSize: 28,
+    fontFamily: '',
+    stroke: 'var(--text-primary)',
+    bold: false,
+    italic: false,
+    align: 'left',
+  },
+  setTextDefaults: (defaults) => {
+    set((state) => ({
+      textDefaults: { ...state.textDefaults, ...defaults },
+    }));
+  },
 
   setBoardId: (id) => set({ boardId: id }),
 
@@ -131,9 +162,25 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   updateElement: (id, patch) => {
-    set((state) => ({
-      elements: state.elements.map((el) => (el.id === id ? { ...el, ...patch } : el)),
-    }));
+    set((state) => {
+      const el = state.elements.find((e) => e.id === id);
+      const isText = el && (el.type === 'text' || el.type === 'handwriting');
+      const nextDefaults = isText ? { ...state.textDefaults } : state.textDefaults;
+
+      if (isText) {
+        if (patch.fontSize !== undefined) nextDefaults.fontSize = patch.fontSize;
+        if (patch.fontFamily !== undefined) nextDefaults.fontFamily = patch.fontFamily;
+        if (patch.stroke !== undefined) nextDefaults.stroke = patch.stroke;
+        if (patch.bold !== undefined) nextDefaults.bold = !!patch.bold;
+        if (patch.italic !== undefined) nextDefaults.italic = !!patch.italic;
+        if (patch.align !== undefined) nextDefaults.align = patch.align;
+      }
+
+      return {
+        elements: state.elements.map((el) => (el.id === id ? { ...el, ...patch } : el)),
+        textDefaults: nextDefaults,
+      };
+    });
     get().saveToStorage();
   },
 

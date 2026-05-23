@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300..700&family=Caveat:wght@400;600;700&family=Fira+Code:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300..700&family=Caveat:wght@400;600;700&family=Fira+Code:wght@300;400;500&family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Kalam:wght@300;400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,34 +7,36 @@
 /* ─── Apple Design Tokens — Light ─── */
 :root,
 [data-theme="light"] {
-  --bg-canvas:      #F2F2F7;
-  --bg-surface:     #FFFFFF;
+  --bg-canvas:      #f5f5f7; /* Fog canvas background */
+  --bg-surface:     #ffffff; /* Snow card surface */
   --bg-panel:       rgba(255,255,255,0.82);
-  --bg-secondary:   #F2F2F7;
+  --bg-secondary:   #f5f5f7;
   --bg-hover:       rgba(0,0,0,0.04);
-  --border:         rgba(60,60,67,0.13);
-  --border-focus:   rgba(0,122,255,0.6);
-  --text-primary:   #000000;
-  --text-secondary: rgba(60,60,67,0.6);
-  --text-muted:     rgba(60,60,67,0.3);
-  --accent:         #007AFF;
-  --accent-hover:   #0066D6;
-  --accent-glow:    rgba(0,122,255,0.12);
+  --border:         #e8e8ed; /* Silver Mist borders */
+  --border-focus:   #0071e3;
+  --text-primary:   #1d1d1f; /* Ink primary text */
+  --text-secondary: #707070; /* Graphite secondary */
+  --text-muted:     #474747; /* Slate muted */
+  --accent:         #0071e3; /* Azure primary CTA */
+  --accent-hover:   #0066cc; /* Cobalt Link hover */
+  --accent-glow:    rgba(0,113,227,0.08);
   --red:            #FF3B30;
   --green:          #34C759;
   --amber:          #FF9500;
-  --dot-grid:       rgba(60,60,67,0.12);
+  --dot-grid:       rgba(29,29,31,0.06);
 
-  --shadow-sm:      0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:      0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
-  --shadow-lg:      0 8px 32px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.07);
-  --shadow-lifted:  0 16px 48px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08);
+  /* Apple Neo: Zero Shadows across all card instances. Elevation is expressed entirely through background-color differential */
+  --shadow-sm:      none;
+  --shadow-md:      none;
+  --shadow-lg:      none;
+  --shadow-lifted:  none;
 
+  /* Card Geometry */
   --radius-sm:      8px;
-  --radius-md:      12px;
+  --radius-md:      10px;
   --radius-lg:      16px;
-  --radius-xl:      20px;
-  --radius-pill:    100px;
+  --radius-xl:      28px; /* Signature Apple Neo card radius: 28px */
+  --radius-pill:    999px;
   --blur-panel:     blur(20px) saturate(180%);
 
   /* Sticky note palette — lighter, more translucent */
@@ -46,12 +48,48 @@
   --note-orange:    #FFF3E0;
   --note-white:     #FAFAFA;
 
-  /* Typography */
-  --font-display:   -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
-  --font-ui:        -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
-  --font-body:      -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+  /* Typography — Families */
+  --font-display:   "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  --font-ui:        "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+  --font-body:      "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
   --font-note:      "Caveat", cursive;
   --font-mono:      "Fira Code", ui-monospace, monospace;
+
+  /* Typography — Scale & Chiseled Negative Tracking */
+  --text-neo-display-size: 96px;
+  --text-neo-display-leading: 1.04;
+  --text-neo-display-tracking: -2.11px;
+
+  --text-neo-heading-lg-size: 56px;
+  --text-neo-heading-lg-leading: 1.07;
+  --text-neo-heading-lg-tracking: -0.9px;
+
+  --text-neo-heading-size: 40px;
+  --text-neo-heading-leading: 1.17;
+  --text-neo-heading-tracking: -0.6px;
+
+  --text-neo-subheading-size: 20px;
+  --text-neo-subheading-leading: 1.4;
+  --text-neo-subheading-tracking: -0.2px;
+
+  --text-neo-body-size: 17px;
+  --text-neo-body-leading: 1.47;
+  --text-neo-body-tracking: -0.1px;
+
+  --text-neo-body-sm-size: 14px;
+  --text-neo-body-sm-leading: 1.43;
+  --text-neo-body-sm-tracking: -0.04px;
+
+  /* Product Swatches & Theatrical Finish Gradients */
+  --color-citrus-finish: #dddc8c;
+  --color-blush-finish: #e8d0d0;
+  --color-indigo-finish: #596680;
+  --color-silver-finish: #e3e4e5;
+  --color-caution: #b64400;
+
+  --gradient-citrus-gradient: linear-gradient(184deg, rgb(29, 29, 31) 0%, rgb(223, 231, 79) 33%, rgb(94, 156, 42) 66%, rgb(10, 134, 26) 95%);
+  --gradient-indigo-gradient: linear-gradient(184deg, rgb(29, 29, 31) 20%, rgb(168, 211, 251) 43%, rgb(0, 18, 249) 76%, rgb(37, 53, 224) 95%);
+  --gradient-blush-gradient: linear-gradient(184deg, rgb(29, 29, 31) 20%, rgb(243, 196, 246) 43%, rgb(245, 0, 180) 76%, rgb(204, 41, 188) 95%);
 
   --spring-quick:   cubic-bezier(0.16, 1, 0.3, 1);
   --spring-medium:  cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -59,11 +97,11 @@
   --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Legacy aliases */
-  --accent-light:   #409CFF;
+  --accent-light:   #0071e3;
   --green-online:   #34C759;
   --rose:           #FF3B30;
-  --rough-fill:     rgba(0,122,255,0.06);
-  --rough-stroke:   #1C1C1E;
+  --rough-fill:     rgba(0,113,227,0.06);
+  --rough-stroke:   #1d1d1f;
 }
 
 /* ─── Apple Design Tokens — Dark ─── */
@@ -371,22 +409,22 @@ body {
 
 /* ─── Selection handles ─── */
 .selection-handle {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   background: white;
-  border: 2px solid var(--accent);
-  border-radius: 50%;
+  border: 1.5px solid #0071e3;
+  border-radius: 1px;
   position: absolute;
   transform: translate(-50%, -50%);
   cursor: pointer;
   pointer-events: all;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   transition: transform 0.08s, background 0.08s;
   z-index: 99999;
 }
 .selection-handle:hover {
-  transform: translate(-50%, -50%) scale(1.3);
-  background: #E0F0FF;
+  transform: translate(-50%, -50%) scale(1.2);
+  background: #f5f5f7;
 }
 
 /* ─── Toast progress bar ─── */
@@ -451,6 +489,50 @@ body {
 /* ─── Font display utility ─── */
 .font-display { font-family: var(--font-display); }
 .font-handwriting { font-family: var(--font-note); }
+
+/* ─── Apple Neo Typography Utilities ─── */
+.text-neo-display {
+  font-family: var(--font-display);
+  font-size: var(--text-neo-display-size);
+  line-height: var(--text-neo-display-leading);
+  letter-spacing: var(--text-neo-display-tracking);
+  font-weight: 700;
+}
+.text-neo-heading-lg {
+  font-family: var(--font-display);
+  font-size: var(--text-neo-heading-lg-size);
+  line-height: var(--text-neo-heading-lg-leading);
+  letter-spacing: var(--text-neo-heading-lg-tracking);
+  font-weight: 700;
+}
+.text-neo-heading {
+  font-family: var(--font-display);
+  font-size: var(--text-neo-heading-size);
+  line-height: var(--text-neo-heading-leading);
+  letter-spacing: var(--text-neo-heading-tracking);
+  font-weight: 600;
+}
+.text-neo-subheading {
+  font-family: var(--font-ui);
+  font-size: var(--text-neo-subheading-size);
+  line-height: var(--text-neo-subheading-leading);
+  letter-spacing: var(--text-neo-subheading-tracking);
+  font-weight: 300;
+}
+.text-neo-body {
+  font-family: var(--font-ui);
+  font-size: var(--text-neo-body-size);
+  line-height: var(--text-neo-body-leading);
+  letter-spacing: var(--text-neo-body-tracking);
+  font-weight: 400;
+}
+.text-neo-body-sm {
+  font-family: var(--font-ui);
+  font-size: var(--text-neo-body-sm-size);
+  line-height: var(--text-neo-body-sm-leading);
+  letter-spacing: var(--text-neo-body-sm-tracking);
+  font-weight: 400;
+}
 
 @keyframes picker-spring {
   from { opacity: 0; transform: translateX(-50%) scale(0.9); }

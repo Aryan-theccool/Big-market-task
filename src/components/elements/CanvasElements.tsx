@@ -13,13 +13,14 @@ function getFreehandPath(points: { x: number; y: number }[], stroke: number, col
     { size: stroke * 2, smoothing: 0.5, thinning: 0.5, streamline: 0.5 }
   );
   if (!strokePoints.length) return '';
-  const d = strokePoints.reduce<string[]>((acc, [x0, y0], i, arr) => {
-    const [x1, y1] = arr[(i + 1) % arr.length];
-    acc.push(`${x0},${y0}`, `${(x0 + x1) / 2},${(y0 + y1) / 2}`);
-    return acc;
-  }, ['M', `${strokePoints[0][0]},${strokePoints[0][1]}`, 'Q']);
-  d.push('Z');
-  return d.join(' ');
+  let d = `M ${strokePoints[0][0].toFixed(1)},${strokePoints[0][1].toFixed(1)} Q `;
+  for (let i = 0; i < strokePoints.length; i++) {
+    const [x0, y0] = strokePoints[i];
+    const [x1, y1] = strokePoints[(i + 1) % strokePoints.length];
+    d += `${x0.toFixed(1)},${y0.toFixed(1)} ${((x0 + x1) / 2).toFixed(1)},${((y0 + y1) / 2).toFixed(1)} `;
+  }
+  d += 'Z';
+  return d;
 }
 
 // ─── Note colours ─────────────────────────────────────────────
@@ -76,9 +77,9 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
         backgroundColor: bg,
         borderRadius: 12,
         boxShadow: isSelected
-          ? '0 14px 40px rgba(28,25,23,0.22), 0 4px 12px rgba(28,25,23,0.12)'
-          : '0 3px 10px rgba(28,25,23,0.12), 0 1px 3px rgba(28,25,23,0.08)',
-        border: isSelected ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(28,25,23,0.05)',
+          ? '0 14px 40px rgba(28,25,23,0.18), 0 4px 12px rgba(28,25,23,0.1)'
+          : '0 3px 10px rgba(28,25,23,0.08), 0 1px 3px rgba(28,25,23,0.05)',
+        border: isSelected ? '2px solid #0071e3' : '1px solid rgba(28,25,23,0.08)',
         zIndex: element.z || 0,
         transition: 'box-shadow 0.15s, transform 0.15s',
       }}
@@ -97,7 +98,7 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
           <X className="w-3 h-3" />
         </button>
       </div>
-
+ 
       {/* Content */}
       <div
         ref={bodyRef}
@@ -115,7 +116,7 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
           cursor: isEditing ? 'text' : 'inherit',
         }}
       />
-
+ 
       {/* Folded corner */}
       <div
         className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none"
@@ -124,7 +125,7 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
           borderBottomRightRadius: 12,
         }}
       />
-
+ 
       {/* Colour picker — floating pill above note */}
       {isSelected && !isEditing && (
         <div
@@ -147,7 +148,7 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
               className="w-5 h-5 rounded-full border border-black/10 transition-transform duration-100 hover:scale-125 active:scale-95"
               style={{
                 backgroundColor: NOTE_COLORS[key],
-                boxShadow: element.color === key ? '0 0 0 2px white, 0 0 0 4px #7C3AED' : undefined,
+                boxShadow: element.color === key ? '0 0 0 2px white, 0 0 0 4px #0071e3' : undefined,
                 transform: element.color === key ? 'scale(1.15)' : undefined,
               }}
               onClick={(e) => {
@@ -231,10 +232,10 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
         opacity: element.opacity !== undefined ? element.opacity : 1,
         zIndex: element.z || 0,
         border: isEditing
-          ? '1px dashed rgba(99,102,241,0.5)'
+          ? 'none'
           : isSelected
-          ? '1px dashed rgba(99,102,241,0.3)'
-          : '1px solid transparent',
+          ? '1px dashed rgba(0,113,227,0.3)'
+          : 'none',
         borderRadius: 6,
         padding: '4px 8px',
         boxSizing: 'border-box',
@@ -254,8 +255,10 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
         onInput={syncWidth}
         className="outline-none select-text"
         style={{
-          fontFamily: 'Caveat, cursive',
+          fontFamily: element.fontFamily || 'Caveat, cursive',
           fontSize,
+          fontWeight: element.bold ? '700' : 'normal',
+          fontStyle: element.italic ? 'italic' : 'normal',
           lineHeight: 1.3,
           color,
           textAlign: element.align || 'left',
@@ -278,6 +281,7 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
 export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
   const updateElement = useCanvasStore((s) => s.updateElement);
   const activeTool = useCanvasStore((s) => s.activeTool);
+  const containerRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -287,28 +291,49 @@ export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPoi
     }
   }, [element.text]);
 
+  const syncWidth = useCallback(() => {
+    const text = textRef.current;
+    const wrap = containerRef.current;
+    if (!text || !wrap) return;
+    wrap.style.width = 'auto';
+    const contentW = text.scrollWidth;
+    wrap.style.width = Math.max(80, contentW + 20) + 'px';
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    setIsEditing(true);
+    requestAnimationFrame(syncWidth);
+  }, [syncWidth]);
+
   const handleBlur = useCallback(() => {
     setIsEditing(false);
-    if (textRef.current) updateElement(element.id, { text: textRef.current.innerText });
+    if (textRef.current && containerRef.current) {
+      const w = containerRef.current.offsetWidth;
+      const h = containerRef.current.offsetHeight;
+      updateElement(element.id, { text: textRef.current.innerText, w, h });
+      containerRef.current.style.width = '';
+    }
   }, [element.id, updateElement]);
 
   const color = element.stroke || 'var(--text-primary)';
 
   return (
     <div
+      ref={containerRef}
       data-id={element.id}
       className="absolute select-none pointer-events-auto"
       style={{
         left: element.x, top: element.y,
-        width: element.w || 'auto',
-        minWidth: 100, minHeight: 40,
+        width: element.w ? element.w : 'max-content',
+        minWidth: 80,
         transform: `rotate(${element.rot || 0}deg)`,
-        padding: '6px 10px',
-        borderRadius: 8,
-        border: isEditing ? '1px dashed rgba(99,102,241,0.5)' : isSelected ? '1px dashed rgba(99,102,241,0.35)' : '1px solid transparent',
+        padding: '4px 8px',
+        borderRadius: 6,
+        border: isEditing ? 'none' : isSelected ? '1px dashed rgba(0,113,227,0.3)' : 'none',
         backgroundColor: element.fill && element.fill !== 'transparent' ? element.fill : 'transparent',
         zIndex: element.z || 0,
         opacity: element.opacity !== undefined ? element.opacity : 1,
+        cursor: isEditing ? 'text' : 'move',
       }}
       onPointerDown={(e) => { if (isEditing) { e.stopPropagation(); return; } onPointerDown(e); }}
     >
@@ -316,14 +341,22 @@ export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPoi
         ref={textRef}
         contentEditable={activeTool === 'select'}
         suppressContentEditableWarning
-        onFocus={() => setIsEditing(true)}
+        onFocus={handleFocus}
         onBlur={handleBlur}
-        className="outline-none select-text break-words leading-tight"
+        onInput={syncWidth}
+        className="outline-none select-text"
         style={{
-          fontFamily: 'var(--font-display)',
+          fontFamily: element.fontFamily || 'var(--font-display)',
           fontSize: element.fontSize || 28,
+          fontWeight: element.bold ? '700' : 'normal',
+          fontStyle: element.italic ? 'italic' : 'normal',
+          lineHeight: 1.3,
           color,
           textAlign: element.align || 'left',
+          whiteSpace: 'pre',
+          display: 'block',
+          width: '100%',
+          cursor: isEditing ? 'text' : 'inherit',
         }}
       />
     </div>
@@ -447,29 +480,36 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
   }, [element.type, bw, bh, lx1, ly1, lx2, ly2, strokeColor, fillColor, strokeW, roughness, element.radius]);
 
   // Freehand draw uses perfect-freehand
+  const d = React.useMemo(() => {
+    if (!isDraw) return '';
+    return getFreehandPath(element.points || [], strokeW, strokeColor);
+  }, [isDraw, element.points, strokeW, strokeColor]);
+
   if (isDraw) {
-    const d = getFreehandPath(element.points || [], strokeW, strokeColor);
     const rot = element.rot || 0;
     return (
       <svg
         data-id={element.id}
         className="absolute pointer-events-auto overflow-visible"
-        style={{ left: bx, top: by, width: bw, height: bh, overflow: 'visible', zIndex: element.z || 0, transform: `rotate(${rot}deg)`, transformOrigin: 'center' }}
+        style={{
+          left: bx, top: by,
+          width: bw, height: bh,
+          overflow: 'visible',
+          zIndex: element.z || 0,
+          transform: `rotate(${rot}deg)`,
+          transformOrigin: 'center',
+        }}
         onPointerDown={onPointerDown}
       >
         {d && (
-          <path
-            d={d.split(' ').map((v, i) => {
-              if (isNaN(Number(v)) || v.includes(',')) {
-                const [x, y] = v.split(',');
-                return `${parseFloat(x) - bx},${parseFloat(y) - by}`;
-              }
-              return v;
-            }).join(' ')}
-            fill={strokeColor}
-            stroke="none"
-            opacity={element.opacity ?? 1}
-          />
+          <g transform={`translate(${-bx}, ${-by})`}>
+            <path
+              d={d}
+              fill={strokeColor}
+              stroke="none"
+              opacity={element.opacity ?? 1}
+            />
+          </g>
         )}
       </svg>
     );
@@ -572,7 +612,28 @@ interface SelectionBoxProps {
 }
 
 export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeStart, onRotateStart }) => {
-  if (!elements.length) return null;
+  const [isTyping, setIsTyping] = useState(false);
+
+  useEffect(() => {
+    const handleFocusChange = () => {
+      const active = document.activeElement;
+      const editing = active?.getAttribute('contenteditable') === 'true' || active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA';
+      setIsTyping(!!editing);
+    };
+    document.addEventListener('focusin', handleFocusChange);
+    document.addEventListener('focusout', handleFocusChange);
+    handleFocusChange();
+    return () => {
+      document.removeEventListener('focusin', handleFocusChange);
+      document.removeEventListener('focusout', handleFocusChange);
+    };
+  }, []);
+
+  if (!elements.length || isTyping) return null;
+
+  const single = elements[0];
+  const isLineType = elements.length === 1 && ['line', 'arrow', 'draw'].includes(single.type);
+  if (isLineType) return null;
 
   const getBounds = (el: CanvasElement) => {
     if (el.type === 'line' || el.type === 'arrow') {
@@ -593,9 +654,7 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
   const maxY = Math.max(...bounds.map((b) => b.y + b.h));
   const w = maxX - minX, h = maxY - minY;
 
-  const single = elements[0];
-  const isLineType = elements.length === 1 && ['line', 'arrow', 'draw'].includes(single.type);
-  const rot = elements.length === 1 && !isLineType ? (single.rot || 0) : 0;
+  const rot = elements.length === 1 ? (single.rot || 0) : 0;
 
   const handles = ['nw','n','ne','e','se','s','sw','w'];
   const handlePos: Record<string, { left: string; top: string; cursor: string }> = {
@@ -619,7 +678,7 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
         zIndex: 999990,
       }}
     >
-      {/* Dashed border */}
+      {/* Solid elegant outline */}
       <svg
         className="absolute inset-0 overflow-visible pointer-events-none"
         style={{ width: '100%', height: '100%' }}
@@ -627,14 +686,12 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
         <rect
           x="0" y="0" width="100%" height="100%"
           fill="none"
-          stroke="rgba(99,102,241,0.7)"
-          strokeWidth="1.5"
-          strokeDasharray="7 4"
-          className="marching-ants"
-          rx="2"
+          stroke="#0071e3"
+          strokeWidth="1"
+          rx="1"
         />
       </svg>
-
+ 
       {!isLineType && (
         <>
           {handles.map((h) => (
@@ -645,31 +702,30 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
               onPointerDown={(e) => onResizeStart(h, e)}
             />
           ))}
-
-          {/* Rotation line */}
-          <div
-            className="absolute left-1/2 pointer-events-none"
-            style={{ top: -32, width: 1, height: 28, background: 'rgba(99,102,241,0.5)', transform: 'translateX(-50%)' }}
-          />
-
-          {/* Rotation handle */}
-          <div
-            className="absolute left-1/2 pointer-events-all flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing"
-            style={{
-              top: -44, transform: 'translateX(-50%)',
-              width: 24, height: 24,
-              background: 'white',
-              border: '2px solid rgba(99,102,241,0.8)',
-              boxShadow: '0 2px 8px rgba(99,102,241,0.2)',
-              zIndex: 999999,
-            }}
-            onPointerDown={onRotateStart}
-          >
-            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-accent-DEFAULT" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M13 8A5 5 0 1 1 8 3" strokeLinecap="round" />
-              <path d="M8 1l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+ 
+          {elements.length === 1 && (
+            <>
+              {/* Rotation line */}
+              <div
+                className="absolute left-1/2 pointer-events-none"
+                style={{ top: -20, width: 1, height: 16, background: '#0071e3', transform: 'translateX(-50%)' }}
+              />
+     
+              {/* Rotation handle */}
+              <div
+                className="absolute left-1/2 pointer-events-all flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing hover:scale-110 active:scale-95 transition-transform"
+                style={{
+                  top: -26, transform: 'translateX(-50%)',
+                  width: 10, height: 10,
+                  background: 'white',
+                  border: '1.5px solid #0071e3',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                  zIndex: 999999,
+                }}
+                onPointerDown={onRotateStart}
+              />
+            </>
+          )}
         </>
       )}
     </div>

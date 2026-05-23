@@ -18,10 +18,15 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
   const applyTemplate = (tpl: TemplateCard) => {
     setSelected(tpl.id);
     setTimeout(() => {
-      const elements: CanvasElement[] = tpl.elements.map((el) => ({
-        ...el,
-        id: freshId(),
-      } as CanvasElement));
+      const elements: CanvasElement[] = tpl.elements.map((el) => {
+        const isNote = el.type === 'note';
+        const naturalRot = isNote ? Math.round((Math.random() * 6 - 3) * 10) / 10 : 0;
+        return {
+          ...el,
+          id: freshId(),
+          rot: el.rot !== undefined ? el.rot : naturalRot,
+        } as CanvasElement;
+      });
       store.importBoard(elements, tpl.title);
       onClose();
     }, 180);

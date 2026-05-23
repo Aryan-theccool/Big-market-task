@@ -341,7 +341,15 @@ export default function BoardsPage() {
 
   const useTemplate = (tpl: TemplateCard) => {
     const id = createBoard(tpl.title);
-    const elements = tpl.elements.map((el) => ({ ...el, id: freshId() }));
+    const elements = tpl.elements.map((el) => {
+      const isNote = el.type === 'note';
+      const naturalRot = isNote ? Math.round((Math.random() * 6 - 3) * 10) / 10 : 0;
+      return {
+        ...el,
+        id: freshId(),
+        rot: el.rot !== undefined ? el.rot : naturalRot,
+      };
+    });
     localStorage.setItem(`inkspace-board-${id}`, JSON.stringify({
       boardName: tpl.title,
       viewport: { x: 260, y: 140, zoom: 1 },

@@ -168,11 +168,17 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
     if (store.activeTool === 'handwriting') {
       const id = uid();
+      const defs = store.textDefaults;
       store.addElement({
         id, type: 'handwriting',
         x: pt.x, y: pt.y, w: 200, h: 50,
-        text: '', fontSize: 28,
-        stroke: 'var(--text-primary)',
+        text: '',
+        fontSize: defs.fontSize,
+        fontFamily: defs.fontFamily || 'Caveat, cursive',
+        stroke: defs.stroke,
+        bold: defs.bold,
+        italic: defs.italic,
+        align: defs.align,
         z: Date.now() % 100000,
       });
       setTimeout(() => {
@@ -185,10 +191,17 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
     if (store.activeTool === 'text') {
       const id = uid();
+      const defs = store.textDefaults;
       store.addElement({
         id, type: 'text',
         x: pt.x, y: pt.y - 20, w: 260, h: 60,
-        text: '', fontSize: 28,
+        text: '',
+        fontSize: defs.fontSize,
+        fontFamily: defs.fontFamily || 'var(--font-display)',
+        stroke: defs.stroke,
+        bold: defs.bold,
+        italic: defs.italic,
+        align: defs.align,
         z: Date.now() % 100000,
       });
       setTimeout(() => {
@@ -238,7 +251,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       return;
     }
 
-    if (store.activeTool === 'lasso') {
+    if (store.activeTool === 'lasso' || store.activeTool === 'select') {
       const r = getBoardRect();
       const rel = { x: e.clientX - r.left, y: e.clientY - r.top };
       lassoStartRef.current = rel;
@@ -287,23 +300,67 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       }
 
       if (d.kind === 'resize') {
+        const pb = d.parentBox;
+        if (!pb || pb.w <= 0 || pb.h <= 0) return;
+
+        let nx = pb.x, ny = pb.y, nw = pb.w, nh = pb.h;
+        const h = d.originals[0].handle;
+
+        if (h.includes('e')) nw = pb.w + dx;
+        if (h.includes('s')) nh = pb.h + dy;
+        if (h.includes('w')) { nx = pb.x + dx; nw = pb.w - dx; }
+        if (h.includes('n')) { ny = pb.y + dy; nh = pb.h - dy; }
+
+        if (nw < 10) { if (h.includes('w')) nx += nw - 10; nw = 10; }
+        if (nh < 10) { if (h.includes('n')) ny += nh - 10; nh = 10; }
+
+        const scaleX = nw / pb.w;
+        const scaleY = nh / pb.h;
+
         store.setElements((prev) => prev.map((el) => {
           const orig = d.originals.find((o: any) => o.id === el.id);
-          if (!orig || ['line','arrow','draw'].includes(el.type)) return el;
-          let nx = orig.b.x, ny = orig.b.y, nw = orig.b.w, nh = orig.b.h;
-          const h = orig.handle;
-          if (h.includes('e')) nw = orig.b.w + dx;
-          if (h.includes('s')) nh = orig.b.h + dy;
-          if (h.includes('w')) { nx = orig.b.x + dx; nw = orig.b.w - dx; }
-          if (h.includes('n')) { ny = orig.b.y + dy; nh = orig.b.h - dy; }
-          if (e.shiftKey) {
-            const ratio = orig.b.w / Math.max(1, orig.b.h);
-            if (Math.abs(nw - orig.b.w) > Math.abs(nh - orig.b.h)) nh = nw / ratio;
-            else nw = nh * ratio;
+          if (!orig) return el;
+
+          const next = { ...el };
+
+          if (!['line', 'arrow', 'draw'].includes(el.type)) {
+            const relX = orig.b.x - pb.x;
+            const relY = orig.b.y - pb.y;
+
+            next.x = nx + relX * scaleX;
+            next.y = ny + relY * scaleY;
+            next.w = orig.b.w * scaleX;
+            next.h = orig.b.h * scaleY;
+
+            if (orig.b.h > 0 && (el.type === 'text' || el.type === 'handwriting') && orig.fontSize) {
+              next.fontSize = Math.max(8, Math.round(orig.fontSize * (scaleY + scaleX) / 2));
+            }
           }
-          if (nw < 20) { if (h.includes('w')) nx += nw - 20; nw = 20; }
-          if (nh < 20) { if (h.includes('n')) ny += nh - 20; nh = 20; }
-          return { ...el, x: nx, y: ny, w: nw, h: nh };
+          else if (el.type === 'line' || el.type === 'arrow') {
+            const relX = orig.x - pb.x;
+            const relY = orig.y - pb.y;
+            next.x = nx + relX * scaleX;
+            next.y = ny + relY * scaleY;
+
+            if (orig.x2 !== undefined && orig.y2 !== undefined) {
+              const relX2 = orig.x2 - pb.x;
+              const relY2 = orig.y2 - pb.y;
+              next.x2 = nx + relX2 * scaleX;
+              next.y2 = ny + relY2 * scaleY;
+            }
+          }
+          else if (el.type === 'draw' && orig.points) {
+            next.points = orig.points.map((p: { x: number; y: number }) => {
+              const relX = p.x - pb.x;
+              const relY = p.y - pb.y;
+              return {
+                x: nx + relX * scaleX,
+                y: ny + relY * scaleY,
+              };
+            });
+          }
+
+          return next;
         }));
         return;
       }
@@ -347,7 +404,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       return;
     }
 
-    if (store.activeTool === 'lasso' && lassoStartRef.current) {
+    if ((store.activeTool === 'lasso' || store.activeTool === 'select') && lassoStartRef.current) {
       const r = getBoardRect();
       const cur = { x: e.clientX - r.left, y: e.clientY - r.top };
       setLassoBox(normRect(lassoStartRef.current, cur));
@@ -379,7 +436,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       if (store.activeTool !== 'draw') store.setTool('select');
     }
 
-    if (store.activeTool === 'lasso' && lassoBox) {
+    if ((store.activeTool === 'lasso' || store.activeTool === 'select') && lassoBox) {
       const b = lassoBox;
       setLassoBox(null);
       lassoStartRef.current = null;
@@ -391,7 +448,10 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         };
         const ids = store.elements.filter((el) => intersects(elementBounds(el), worldBox)).map((el) => el.id);
         store.setSelected(ids);
-        store.setTool('select');
+        if (store.activeTool === 'lasso') store.setTool('select');
+      } else {
+        // Clear selection if they just click empty canvas space
+        store.setSelected([]);
       }
     }
 
@@ -430,9 +490,30 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     store.pushHistory();
     const pt = screenToWorld(e.clientX, e.clientY);
     const selEls = store.selected.map((id) => store.elements.find((x) => x.id === id)).filter(Boolean) as CanvasElement[];
+    
+    // Compute combined bounding box bounds
+    const bounds = selEls.map((x) => elementBounds(x));
+    const minX = Math.min(...bounds.map((b) => b.x));
+    const minY = Math.min(...bounds.map((b) => b.y));
+    const maxX = Math.max(...bounds.map((b) => b.x + b.w));
+    const maxY = Math.max(...bounds.map((b) => b.y + b.h));
+    
+    const parentBox = { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+
     dragRef.current = {
       kind: 'resize', start: pt,
-      originals: selEls.map((x) => ({ id: x.id, handle, b: elementBounds(x) })),
+      parentBox,
+      originals: selEls.map((x) => ({
+        id: x.id,
+        handle,
+        b: elementBounds(x),
+        x: x.x,
+        y: x.y,
+        x2: x.x2,
+        y2: x.y2,
+        fontSize: x.fontSize,
+        points: x.points ? x.points.map((p) => ({ ...p })) : undefined,
+      })),
     };
   };
 

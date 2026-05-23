@@ -87,8 +87,8 @@ export const StatusBar: React.FC<StatusBarProps> = ({ viewportWidth, viewportHei
             className="rounded-[6px] px-2 py-0.5 transition-colors"
             style={{
               fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-              background: active ? 'rgba(237,233,254,1)' : 'none',
-              color: active ? '#6D28D9' : 'var(--text-muted)',
+              background: active ? 'var(--accent-glow)' : 'none',
+              color: active ? 'var(--accent)' : 'var(--text-muted)',
               fontWeight: active ? 500 : 400,
             }}
           >{label}</button>

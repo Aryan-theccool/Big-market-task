@@ -422,6 +422,68 @@ export default function BoardIdPage() {
         )}
       </AnimatePresence>
 
+      {/* Region export helper banner */}
+      <AnimatePresence>
+        {store.activeTool === 'export' && !hasRegion && (
+          <motion.div
+            className="fixed z-[9800] left-1/2 -translate-x-1/2 flex items-center gap-3 px-4 py-2.5 glass-panel"
+            style={{
+              top: 72,
+              borderRadius: '9999px',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--border)',
+            }}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+          >
+            <span
+              className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse flex-shrink-0"
+              style={{ background: 'var(--accent)' }}
+            />
+            <span
+              style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--text-primary)',
+              }}
+            >
+              Export Region: Drag a box over the canvas to crop
+            </span>
+            <div style={{ width: '0.5px', height: 16, background: 'var(--border)' }} />
+            <button
+              onClick={() => {
+                store.setTool('select');
+                setRegionBox(null);
+                setRegionStart(null);
+              }}
+              className="rounded-full px-3 py-1 transition-all"
+              style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: 12,
+                fontWeight: 600,
+                border: 'none',
+                cursor: 'pointer',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--bg-hover)';
+                e.currentTarget.style.color = 'var(--text-primary)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'var(--bg-secondary)';
+                e.currentTarget.style.color = 'var(--text-secondary)';
+              }}
+            >
+              Cancel
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Toast stack */}
       <div className="fixed top-[60px] left-1/2 -translate-x-1/2 z-[99999] flex flex-col gap-2 items-center" style={{ pointerEvents: 'none' }}>
         <AnimatePresence>

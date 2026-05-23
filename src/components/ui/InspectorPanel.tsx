@@ -98,7 +98,7 @@ export const InspectorPanel: React.FC = () => {
   const store = useCanvasStore();
   const { selected, elements, updateElement } = store;
 
-  const isOpen = selected.length > 0;
+  const isOpen = selected.length === 1;
   const el = elements.find((e) => e.id === selected[0]);
 
   const upd = (patch: Partial<CanvasElement>) => {
@@ -197,8 +197,56 @@ export const InspectorPanel: React.FC = () => {
               <div>
                 <SectionTitle>Typography</SectionTitle>
                 <GroupedList>
+                  <ListRow label="Font">
+                    <select
+                      value={el.fontFamily || ''}
+                      onChange={(e) => upd({ fontFamily: e.target.value })}
+                      className="bg-transparent text-right outline-none cursor-pointer"
+                      style={{ fontSize: 14, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', maxWidth: 160 }}
+                    >
+                      <option value="" style={{ background: 'var(--bg-surface)' }}>Default</option>
+                      <option value="Caveat, cursive" style={{ background: 'var(--bg-surface)' }}>Handwriting (Caveat)</option>
+                      <option value="Kalam, cursive" style={{ background: 'var(--bg-surface)' }}>Sketch (Kalam)</option>
+                      <option value="var(--font-display)" style={{ background: 'var(--bg-surface)' }}>Display (Outfit/Sans)</option>
+                      <option value="var(--font-mono)" style={{ background: 'var(--bg-surface)' }}>Monospace (Fira)</option>
+                      <option value="Playfair Display, serif" style={{ background: 'var(--bg-surface)' }}>Elegant (Serif)</option>
+                    </select>
+                  </ListRow>
                   <ListRow label="Size"><Slider value={el.fontSize || 24} onChange={(v) => upd({ fontSize: v })} min={10} max={72} /></ListRow>
                   <ListRow label="Color"><ColorSwatch value={el.stroke || '#000000'} onChange={(v) => upd({ stroke: v })} /></ListRow>
+                  <ListRow label="Style">
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => upd({ bold: !el.bold })}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold border transition-colors ${el.bold ? 'bg-[var(--accent)] border-transparent text-white' : 'bg-transparent border-[var(--border)] text-[var(--text-primary)]'}`}
+                        style={{ fontSize: 14 }}
+                        title="Bold"
+                      >
+                        B
+                      </button>
+                      <button
+                        onClick={() => upd({ italic: !el.italic })}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center italic border transition-colors ${el.italic ? 'bg-[var(--accent)] border-transparent text-white' : 'bg-transparent border-[var(--border)] text-[var(--text-primary)]'}`}
+                        style={{ fontSize: 14 }}
+                        title="Italic"
+                      >
+                        I
+                      </button>
+                    </div>
+                  </ListRow>
+                  <ListRow label="Align">
+                    <div className="flex gap-1">
+                      {['left', 'center', 'right'].map((align) => (
+                        <button
+                          key={align}
+                          onClick={() => upd({ align: align as any })}
+                          className={`px-2.5 h-8 rounded-lg flex items-center justify-center border text-xs capitalize transition-colors ${el.align === align || (!el.align && align === 'left') ? 'bg-[var(--accent)] border-transparent text-white' : 'bg-transparent border-[var(--border)] text-[var(--text-primary)]'}`}
+                        >
+                          {align}
+                        </button>
+                      ))}
+                    </div>
+                  </ListRow>
                 </GroupedList>
               </div>
             )}
