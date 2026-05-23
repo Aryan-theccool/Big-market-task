@@ -125,20 +125,29 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
         }}
       />
 
-      {/* Colour picker on select */}
+      {/* Colour picker — floating pill above note */}
       {isSelected && !isEditing && (
         <div
-          className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1.5 rounded-full animate-fade-slide-up z-[9999]"
-          style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-md)', backdropFilter: 'blur(14px)' }}
+          className="absolute left-1/2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full z-[9999]"
+          style={{
+            bottom: 'calc(100% + 10px)',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-lg)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            animation: 'picker-spring 150ms cubic-bezier(0.34,1.56,0.64,1) forwards',
+          }}
           onPointerDown={(e) => e.stopPropagation()}
         >
           {NOTE_COLOR_KEYS.map((key) => (
             <button
               key={key}
-              className="w-5 h-5 rounded-full border border-black/10 transition-transform duration-100 hover:scale-110 active:scale-95"
+              className="w-5 h-5 rounded-full border border-black/10 transition-transform duration-100 hover:scale-125 active:scale-95"
               style={{
                 backgroundColor: NOTE_COLORS[key],
-                boxShadow: element.color === key ? '0 0 0 2px var(--accent)' : undefined,
+                boxShadow: element.color === key ? '0 0 0 2px white, 0 0 0 4px #7C3AED' : undefined,
                 transform: element.color === key ? 'scale(1.15)' : undefined,
               }}
               onClick={(e) => {
@@ -161,17 +170,49 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
   const updateElement = useCanvasStore((s) => s.updateElement);
   const activeTool = useCanvasStore((s) => s.activeTool);
   const textRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Sync DOM text only when the stored value actually differs (avoids caret reset)
   useEffect(() => {
     if (textRef.current && textRef.current.innerText !== (element.text || '')) {
       textRef.current.innerText = element.text || '';
     }
   }, [element.text]);
 
+  // Expand container to fit the current text content.
+  // Strategy: free the container width so the pre-formatted inner div
+  // determines its own natural width, then fix it at that value.
+  const syncWidth = useCallback(() => {
+    const text = textRef.current;
+    const wrap = containerRef.current;
+    if (!text || !wrap) return;
+
+    // Release any fixed width so layout uses content width
+    wrap.style.width = 'auto';
+    // scrollWidth gives the full one-line text width even when the
+    // container is narrower (no wrapping because white-space: pre)
+    const contentW = text.scrollWidth;
+    // Pin the container: content width + horizontal padding (8px × 2 = 16px)
+    wrap.style.width = Math.max(80, contentW + 16) + 'px';
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    setIsEditing(true);
+    // Let the browser place the caret, then sync dimensions
+    requestAnimationFrame(syncWidth);
+  }, [syncWidth]);
+
   const handleBlur = useCallback(() => {
     setIsEditing(false);
-    if (textRef.current) updateElement(element.id, { text: textRef.current.innerText });
+    if (textRef.current && containerRef.current) {
+      // Persist actual rendered size so selection handles are accurate
+      const w = containerRef.current.offsetWidth;
+      const h = containerRef.current.offsetHeight;
+      updateElement(element.id, { text: textRef.current.innerText, w, h });
+      // Clear imperative style so the JSX width (element.w) takes over
+      containerRef.current.style.width = '';
+    }
   }, [element.id, updateElement]);
 
   const rot = element.rot || 0;
@@ -180,10 +221,12 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
 
   return (
     <div
+      ref={containerRef}
       data-id={element.id}
       className="absolute select-none pointer-events-auto"
       style={{
-        left: element.x, top: element.y,
+        left: element.x,
+        top: element.y,
         transform: `rotate(${rot}deg)`,
         opacity: element.opacity !== undefined ? element.opacity : 1,
         zIndex: element.z || 0,
@@ -194,7 +237,10 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
           : '1px solid transparent',
         borderRadius: 6,
         padding: '4px 8px',
+        boxSizing: 'border-box',
         cursor: isEditing ? 'text' : 'move',
+        // Saved width used for display; auto-sizes during editing via syncWidth()
+        width: element.w ? element.w : 'max-content',
         minWidth: 80,
       }}
       onPointerDown={(e) => { if (isEditing) { e.stopPropagation(); return; } onPointerDown(e); }}
@@ -203,16 +249,22 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
         ref={textRef}
         contentEditable={activeTool === 'select'}
         suppressContentEditableWarning
-        onFocus={() => setIsEditing(true)}
+        onFocus={handleFocus}
         onBlur={handleBlur}
-        className="outline-none select-text break-words whitespace-pre-wrap"
+        onInput={syncWidth}
+        className="outline-none select-text"
         style={{
           fontFamily: 'Caveat, cursive',
           fontSize,
           lineHeight: 1.3,
           color,
           textAlign: element.align || 'left',
-          minWidth: 60,
+          // pre: no auto-wrap; explicit Enter creates newlines.
+          // This is what stops the 4-char wrap — the container is no longer
+          // the wrapping constraint; text flows right until syncWidth pins it.
+          whiteSpace: 'pre',
+          display: 'block',
+          width: '100%',
           cursor: isEditing ? 'text' : 'inherit',
         }}
       />
@@ -357,7 +409,13 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
         node = rc.ellipse(bw / 2, bh / 2, bw - pad * 2, bh - pad * 2, { ...opts });
         break;
       case 'frame':
-        node = rc.rectangle(pad, pad, bw - pad * 2, bh - pad * 2, { ...opts, fillStyle: 'solid' as const, strokeLineDash: [8, 5] });
+        node = rc.rectangle(pad, pad, bw - pad * 2, bh - pad * 2, {
+          ...opts,
+          roughness: 0.6,
+          fillStyle: 'solid' as const,
+          fill: fillColor.replace(/[\d.]+\)$/, '0.04)'),
+          strokeLineDash: [6, 4],
+        });
         break;
       case 'line':
         node = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
@@ -438,18 +496,16 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
       onPointerDown={onPointerDown}
     >
       {element.type === 'frame' && (
-        <foreignObject x={8} y={-22} width={200} height={28} className="overflow-visible">
+        <foreignObject x={6} y={-28} width={240} height={28} className="overflow-visible">
           <div
             style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4,
-              background: 'var(--bg-panel)', border: '1px solid var(--border)',
-              borderRadius: 999, padding: '2px 10px',
-              fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
-              color: 'var(--accent)', backdropFilter: 'blur(12px)',
-              boxShadow: 'var(--shadow-sm)',
+              display: 'inline-block',
+              fontFamily: "'Caveat', cursive", fontSize: 16, fontWeight: 600,
+              color: element.stroke || 'var(--accent)',
+              whiteSpace: 'nowrap',
             }}
           >
-            ⬡ {element.text || 'Frame'}
+            {element.text || 'Frame'}
           </div>
         </foreignObject>
       )}

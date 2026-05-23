@@ -105,7 +105,12 @@
   box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
+
+::selection { background: rgba(124,58,237,0.15); color: inherit; }
+
+button, a { transition: all 0.15s ease; }
 
 html { scroll-behavior: smooth; }
 
@@ -224,10 +229,12 @@ body {
 .icon-button:disabled { opacity: 0.3; cursor: not-allowed; }
 
 /* ─── Scrollbars ─── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 100px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 
 /* ─── Keyframes ─── */
 @keyframes marching-ants {
@@ -444,6 +451,11 @@ body {
 /* ─── Font display utility ─── */
 .font-display { font-family: var(--font-display); }
 .font-handwriting { font-family: var(--font-note); }
+
+@keyframes picker-spring {
+  from { opacity: 0; transform: translateX(-50%) scale(0.9); }
+  to   { opacity: 1; transform: translateX(-50%) scale(1); }
+}
 
 /* ─── Landing page keyframes ─── */
 @keyframes float-gentle {

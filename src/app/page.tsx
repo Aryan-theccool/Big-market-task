@@ -118,41 +118,43 @@ function Navbar() {
 
   return (
     <nav style={{
-      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, height: 58,
-      background: scrolled ? 'rgba(255,255,255,0.92)' : BG,
-      backdropFilter: scrolled ? 'blur(20px)' : 'none',
-      borderBottom: `1px solid ${scrolled ? BORDER : 'transparent'}`,
-      transition: 'background 0.25s, border-color 0.25s',
+      position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999, height: 56,
+      background: 'rgba(255,255,255,0.82)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      borderBottom: '1px solid rgba(226,232,240,0.8)',
+      boxShadow: scrolled ? '0 1px 16px rgba(0,0,0,0.06)' : 'none',
+      transition: 'box-shadow 0.25s',
     }}>
       <div style={{ maxWidth: 1080, margin: '0 auto', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px' }}>
         <a href="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: '#7C3AED', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
             </svg>
           </div>
-          <span style={{ fontFamily: FD, fontSize: 17, fontWeight: 700, color: T1, letterSpacing: '-0.01em' }}>Inkspace</span>
+          <span style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>Inkspace</span>
         </a>
 
         <div className="hidden md:flex" style={{ gap: 2 }}>
           {['Features', 'Templates', 'Pricing', 'Community'].map(l => (
-            <a key={l} href={`#${l.toLowerCase()}`} style={{ fontFamily: FD, fontSize: 14, fontWeight: 500, color: T2, padding: '6px 13px', borderRadius: 8, textDecoration: 'none', transition: 'color 0.15s, background 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.color = T1; e.currentTarget.style.background = BG2; }}
-              onMouseLeave={e => { e.currentTarget.style.color = T2; e.currentTarget.style.background = 'transparent'; }}>
+            <a key={l} href={`#${l.toLowerCase()}`} style={{ fontFamily: FD, fontSize: 14, fontWeight: 500, color: '#475569', padding: '6px 12px', borderRadius: 8, textDecoration: 'none' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#0F172A'; e.currentTarget.style.background = '#F1F5F9'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = '#475569'; e.currentTarget.style.background = 'transparent'; }}>
               {l}
             </a>
           ))}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link href="/boards" style={{ fontFamily: FD, fontSize: 14, fontWeight: 500, color: T2, textDecoration: 'none', padding: '7px 14px', borderRadius: 8, transition: 'color 0.15s' }}
-            onMouseEnter={e => (e.currentTarget.style.color = T1)}
-            onMouseLeave={e => (e.currentTarget.style.color = T2)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Link href="/boards" style={{ fontFamily: FD, fontSize: 14, fontWeight: 500, color: '#475569', textDecoration: 'none', padding: '7px 14px', borderRadius: 8 }}
+            onMouseEnter={e => (e.currentTarget.style.color = '#0F172A')}
+            onMouseLeave={e => (e.currentTarget.style.color = '#475569')}>
             Log in
           </Link>
-          <Link href="/boards" style={{ fontFamily: FD, fontSize: 14, fontWeight: 700, color: 'white', background: ACCENT, textDecoration: 'none', padding: '8px 20px', borderRadius: 10, border: 'none', display: 'inline-flex', alignItems: 'center', boxShadow: `0 2px 12px ${ACCENTL}`, transition: 'opacity 0.15s, transform 0.1s' }}
-            onMouseEnter={e => { e.currentTarget.style.opacity = '0.88'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}>
+          <Link href="/boards" style={{ fontFamily: FD, fontSize: 14, fontWeight: 600, color: 'white', background: '#7C3AED', textDecoration: 'none', padding: '8px 16px', borderRadius: 10, display: 'inline-flex', alignItems: 'center', boxShadow: '0 1px 3px rgba(124,58,237,0.3), 0 1px 2px rgba(0,0,0,0.06)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = '#6D28D9'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(124,58,237,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#7C3AED'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(124,58,237,0.3), 0 1px 2px rgba(0,0,0,0.06)'; }}>
             Get Started
           </Link>
         </div>
@@ -164,50 +166,62 @@ function Navbar() {
 /* ─── Hero ───────────────────────────────────────────────────────────────── */
 function Hero() {
   return (
-    <section style={{ paddingTop: 100, paddingBottom: 80, textAlign: 'center', background: BG }}>
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 24px' }}>
+    <section style={{ paddingTop: 110, paddingBottom: 80, background: BG, position: 'relative', overflow: 'hidden' }}>
+      {/* Blob backgrounds */}
+      <div style={{ position: 'absolute', top: -120, right: -120, width: 560, height: 560, borderRadius: '50%', background: 'rgba(237,233,254,0.4)', filter: 'blur(120px)', pointerEvents: 'none' }}/>
+      <div style={{ position: 'absolute', bottom: -80, left: -100, width: 440, height: 440, borderRadius: '50%', background: 'rgba(219,234,254,0.3)', filter: 'blur(120px)', pointerEvents: 'none' }}/>
+
+      <div style={{ maxWidth: 768, margin: '0 auto', padding: '0 24px', position: 'relative' }}>
         {/* Badge */}
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: ACCENTL, border: `1px solid rgba(94,92,230,0.2)`, borderRadius: 100, padding: '5px 14px', marginBottom: 28 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: ACCENT }}/>
-          <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 600, color: ACCENT }}>Now with real-time collaboration</span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#fff', border: '1px solid #DDD6FE', borderRadius: 100, padding: '5px 14px', marginBottom: 28, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED', animation: 'pulse-glow 2s ease-in-out infinite' }}/>
+          <span style={{ fontFamily: FD, fontSize: 13, fontWeight: 500, color: '#475569' }}>Now with real-time collaboration</span>
         </div>
 
         {/* Headline */}
-        <h1 style={{ fontFamily: FD, fontSize: 'clamp(44px, 7.5vw, 80px)', fontWeight: 800, color: T1, letterSpacing: '-0.04em', lineHeight: 1.06, marginBottom: 22, animation: 'fade-slide-up 0.45s both' }}>
+        <h1 style={{ fontFamily: FD, fontSize: 72, fontWeight: 700, color: T1, letterSpacing: '-0.03em', lineHeight: 1.05, marginBottom: 22, animation: 'fade-slide-up 0.45s both' }}>
           Your ideas deserve<br/>
-          <span style={{ color: ACCENT }}>infinite space.</span>
+          <span style={{ color: '#7C3AED' }}>infinite space.</span>
         </h1>
 
         {/* Sub */}
-        <p style={{ fontFamily: FD, fontSize: 'clamp(16px, 2vw, 20px)', color: T2, lineHeight: 1.65, maxWidth: 520, margin: '0 auto 40px', animation: 'fade-slide-up 0.45s 0.1s both' }}>
+        <p style={{ fontFamily: FD, fontSize: 18, color: T2, lineHeight: 1.65, maxWidth: 480, marginBottom: 40, animation: 'fade-slide-up 0.45s 0.1s both' }}>
           Sketch, collaborate, and brainstorm on a beautiful infinite canvas. Like Freeform and Excalidraw — but better.
         </p>
 
         {/* CTAs */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 60, animation: 'fade-slide-up 0.45s 0.18s both' }}>
-          <Link href="/boards" style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: 'white', background: ACCENT, textDecoration: 'none', padding: '13px 32px', borderRadius: 13, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: `0 4px 24px rgba(94,92,230,0.35)`, transition: 'transform 0.12s, box-shadow 0.12s' }}
-            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(94,92,230,0.4)'; }}
-            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = `0 4px 24px rgba(94,92,230,0.35)`; }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 64, animation: 'fade-slide-up 0.45s 0.18s both' }}>
+          <Link href="/boards" style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: 'white', background: '#7C3AED', textDecoration: 'none', padding: '13px 32px', borderRadius: 13, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 10px 40px rgba(124,58,237,0.3), 0 4px 12px rgba(124,58,237,0.2)' }}
+            onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(124,58,237,0.35), 0 6px 16px rgba(124,58,237,0.25)'; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 10px 40px rgba(124,58,237,0.3), 0 4px 12px rgba(124,58,237,0.2)'; }}>
             Start Creating
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </Link>
-          <a href="#features" style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: T1, background: 'transparent', border: `1.5px solid ${BORDER}`, textDecoration: 'none', padding: '13px 28px', borderRadius: 13, display: 'inline-flex', alignItems: 'center', gap: 8, transition: 'background 0.15s, border-color 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = BG2; e.currentTarget.style.borderColor = 'rgba(0,0,0,0.14)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = BORDER; }}>
+          <a href="#features" style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: T1, background: '#fff', border: '1px solid #E2E8F0', textDecoration: 'none', padding: '13px 28px', borderRadius: 13, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 1px 3px rgba(0,0,0,0.07)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = BG2; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.09)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.07)'; }}>
             See features
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
           </a>
         </div>
 
-        {/* Canvas preview */}
-        <div style={{ animation: 'fade-slide-up 0.6s 0.26s both', maxWidth: 680, margin: '0 auto' }}>
+        {/* Canvas preview with browser chrome */}
+        <div style={{ animation: 'fade-slide-up 0.6s 0.26s both', borderRadius: 20, overflow: 'hidden', boxShadow: '0 25px 80px rgba(15,23,42,0.15), 0 8px 20px rgba(15,23,42,0.08)', border: '1px solid rgba(0,0,0,0.07)' }}>
+          <div style={{ background: '#F8FAFC', borderBottom: '1px solid rgba(0,0,0,0.07)', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['#FC615D','#FDBC40','#34C749'].map(c => <div key={c} style={{ width: 12, height: 12, borderRadius: '50%', background: c }}/>)}
+            </div>
+            <div style={{ flex: 1, background: 'white', borderRadius: 6, padding: '3px 12px', fontSize: 11, fontFamily: FM, color: T3, border: '1px solid rgba(0,0,0,0.08)', textAlign: 'center' }}>
+              inkspace.app/board/main
+            </div>
+          </div>
           <HeroCanvas />
         </div>
 
         {/* Stats */}
-        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '8px 44px', marginTop: 40 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 44px', marginTop: 40 }}>
           {[{ v: '12k+', l: 'Active boards' }, { v: '80ms', l: 'Sync latency' }, { v: '4.9 / 5', l: 'User rating' }].map(s => (
-            <div key={s.l} style={{ textAlign: 'center' }}>
+            <div key={s.l}>
               <div style={{ fontFamily: FD, fontSize: 24, fontWeight: 800, color: T1, letterSpacing: '-0.03em' }}>{s.v}</div>
               <div style={{ fontFamily: FD, fontSize: 12, color: T3, marginTop: 2 }}>{s.l}</div>
             </div>
@@ -220,48 +234,192 @@ function Hero() {
 
 /* ─── Features ───────────────────────────────────────────────────────────── */
 function Features() {
-  const cards = [
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-      ), title: 'Infinite Canvas', desc: 'Pan and zoom across an unlimited workspace. No page boundaries, no limits to your ideas.' },
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      ), title: 'Real-time Collab', desc: 'See live cursors of collaborators. Share a link and start working together instantly.' },
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16l4-4h10a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-      ), title: 'Sticky Notes', desc: 'Post-it style notes in 7 colors. Write freely with the Caveat handwritten font.' },
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2" strokeLinecap="round"><path d="M17 3a2.828 2.828 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-      ), title: 'Drawing Tools', desc: 'Freehand pen, shapes with hand-drawn wobble, text, arrows, frames and more.' },
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      ), title: 'Export', desc: 'Export any region as PNG or JPEG at 1x, 2x, or 3x resolution. Pixel-perfect output.' },
-    { icon: (
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-      ), title: 'Light & Dark', desc: 'Seamless theme switching. iOS light or pure dark — your canvas, your preference.' },
+  const noteColors = ['#FFF59D','#FCE4EC','#E3F2FD','#E8F5E9','#F3E5F5','#FFF3E0','#FAFAFA'];
+  const liveNotes = [
+    { x: 48,  y: 32,  rot: -3.2, bg: '#FFF9C4', text: 'User research',  delay: 0,   dur: 4.2 },
+    { x: 210, y: 18,  rot:  2.8, bg: '#DBEAFE', text: 'Sprint goals',   delay: 0.5, dur: 5.0 },
+    { x: 390, y: 44,  rot: -1.8, bg: '#EDE9FE', text: 'Ship it! 🚀',   delay: 0.9, dur: 3.8 },
+    { x: 68,  y: 158, rot:  1.4, bg: '#DCFCE7', text: 'Brand palette',  delay: 0.3, dur: 4.6 },
+    { x: 300, y: 150, rot: -2.5, bg: '#FFE4E6', text: 'Feedback ↗',    delay: 0.7, dur: 4.4 },
   ];
 
   return (
     <section id="features" style={{ padding: '96px 24px', background: BG2 }}>
+      <style>{`
+        @keyframes nf1{0%,100%{transform:rotate(-3.2deg) translateY(0)}50%{transform:rotate(-3.2deg) translateY(-6px)}}
+        @keyframes nf2{0%,100%{transform:rotate(2.8deg) translateY(0)}50%{transform:rotate(2.8deg) translateY(-9px)}}
+        @keyframes nf3{0%,100%{transform:rotate(-1.8deg) translateY(0)}50%{transform:rotate(-1.8deg) translateY(-5px)}}
+        @keyframes nf4{0%,100%{transform:rotate(1.4deg) translateY(0)}50%{transform:rotate(1.4deg) translateY(-7px)}}
+        @keyframes nf5{0%,100%{transform:rotate(-2.5deg) translateY(0)}50%{transform:rotate(-2.5deg) translateY(-8px)}}
+        @keyframes cdrift1{0%{transform:translate(0,0)}30%{transform:translate(38px,-18px)}60%{transform:translate(22px,28px)}80%{transform:translate(-12px,16px)}100%{transform:translate(0,0)}}
+        @keyframes cdrift2{0%{transform:translate(0,0)}35%{transform:translate(-28px,22px)}70%{transform:translate(18px,-20px)}100%{transform:translate(0,0)}}
+        @keyframes sdraw{from{stroke-dashoffset:var(--sd,300)}to{stroke-dashoffset:0}}
+      `}</style>
+
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 56 }}>
-          <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px, 4vw, 46px)', fontWeight: 800, color: T1, letterSpacing: '-0.03em', marginBottom: 14 }}>
-            Everything you need to think visually
+
+        {/* Section label + heading */}
+        <div style={{ marginBottom: 52 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 14 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED' }}/>
+            <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, color: '#7C3AED', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Features</span>
+          </div>
+          <h2 style={{ fontFamily: FD, fontSize: 'clamp(30px, 4.5vw, 50px)', fontWeight: 700, color: T1, letterSpacing: '-0.03em', lineHeight: 1.1, maxWidth: 480 }}>
+            Built for how<br/>you actually think.
           </h2>
-          <p style={{ fontFamily: FD, fontSize: 17, color: T2, maxWidth: 440, margin: '0 auto', lineHeight: 1.6 }}>
-            Built for makers, designers, and teams who think in diagrams.
-          </p>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {cards.map(c => (
-            <div key={c.title} style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 18, padding: '28px 26px', transition: 'box-shadow 0.2s, transform 0.2s' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(0,0,0,0.08)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.transform = 'none'; }}>
-              <div style={{ marginBottom: 18 }}>{c.icon}</div>
-              <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: T1, marginBottom: 8 }}>{c.title}</div>
-              <div style={{ fontFamily: FD, fontSize: 14, color: T2, lineHeight: 1.65 }}>{c.desc}</div>
+
+        {/* ── Hero card: Infinite Canvas ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderRadius: 24, overflow: 'hidden', background: BG, border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', marginBottom: 16, minHeight: 300 }}>
+          {/* Left: text */}
+          <div style={{ padding: '48px 44px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(124,58,237,0.08)', borderRadius: 100, padding: '3px 12px', marginBottom: 20, width: 'fit-content' }}>
+              <span style={{ fontFamily: FD, fontSize: 11, fontWeight: 600, color: '#7C3AED', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Infinite Canvas</span>
             </div>
-          ))}
+            <h3 style={{ fontFamily: FD, fontSize: 26, fontWeight: 700, color: T1, letterSpacing: '-0.025em', lineHeight: 1.2, marginBottom: 14 }}>
+              Pan, zoom, place —<br/>no boundaries.
+            </h3>
+            <p style={{ fontFamily: FD, fontSize: 15, color: T2, lineHeight: 1.65, marginBottom: 28 }}>
+              Your workspace grows as your ideas do. 60 fps pan and zoom across unlimited space. No page limits, no export friction.
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {['60fps','Dot grid','Auto-snap','Multi-select'].map(tag => (
+                <span key={tag} style={{ fontFamily: FD, fontSize: 12, fontWeight: 500, color: '#64748B', background: BG2, border: '1px solid rgba(0,0,0,0.07)', borderRadius: 100, padding: '4px 12px' }}>{tag}</span>
+              ))}
+            </div>
+          </div>
+          {/* Right: animated canvas */}
+          <div style={{ background: '#F4F3F0', position: 'relative', overflow: 'hidden', backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+            {liveNotes.map((n, i) => (
+              <div key={i} style={{
+                position: 'absolute', left: n.x, top: n.y,
+                padding: '10px 13px', background: n.bg, borderRadius: 10,
+                boxShadow: '0 3px 10px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06)',
+                fontFamily: "'Caveat', cursive", fontSize: 15, color: '#1C1C1E',
+                whiteSpace: 'nowrap', userSelect: 'none',
+                animation: `nf${i + 1} ${n.dur}s ease-in-out ${n.delay}s infinite`,
+              }}>{n.text}</div>
+            ))}
+            {/* Cursor Priya */}
+            <div style={{ position: 'absolute', left: 175, top: 105, animation: 'cdrift1 9s ease-in-out infinite', pointerEvents: 'none' }}>
+              <svg width="14" height="18" viewBox="0 0 13 17"><path d="M0 0 L10 6.5 L6 7.8 L4.5 13 Z" fill="#EF4444" stroke="white" strokeWidth="0.8"/></svg>
+              <div style={{ background: '#EF4444', color: 'white', fontSize: 10, fontWeight: 700, fontFamily: FD, padding: '2px 8px', borderRadius: 20, marginLeft: 10, marginTop: 1, whiteSpace: 'nowrap' }}>Priya</div>
+            </div>
+            {/* Cursor James */}
+            <div style={{ position: 'absolute', left: 340, top: 76, animation: 'cdrift2 11s ease-in-out 1.2s infinite', pointerEvents: 'none' }}>
+              <svg width="14" height="18" viewBox="0 0 13 17"><path d="M0 0 L10 6.5 L6 7.8 L4.5 13 Z" fill="#10B981" stroke="white" strokeWidth="0.8"/></svg>
+              <div style={{ background: '#10B981', color: 'white', fontSize: 10, fontWeight: 700, fontFamily: FD, padding: '2px 8px', borderRadius: 20, marginLeft: 10, marginTop: 1, whiteSpace: 'nowrap' }}>James</div>
+            </div>
+            {/* Live badge */}
+            <div style={{ position: 'absolute', top: 14, right: 14, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)', borderRadius: 100, padding: '4px 12px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, fontFamily: FD, color: T1 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981', animation: 'pulse-glow 2s infinite' }}/>
+              2 collaborating
+            </div>
+          </div>
+        </div>
+
+        {/* ── Row 2: Sticky Notes (dark) + Drawing ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+
+          {/* Sticky Notes — dark card */}
+          <div style={{ borderRadius: 24, background: '#18181B', padding: '36px 36px 0', overflow: 'hidden', position: 'relative' }}>
+            <div style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Sticky Notes</div>
+            <h3 style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: 'white', letterSpacing: '-0.02em', lineHeight: 1.25, marginBottom: 10 }}>
+              7 colors.<br/>One font worth keeping.
+            </h3>
+            <p style={{ fontFamily: FD, fontSize: 14, color: 'rgba(255,255,255,0.45)', lineHeight: 1.65, marginBottom: 32 }}>
+              Caveat handwriting. Tap to write instantly. Drag to rearrange.
+            </p>
+            {/* Fanned note stack */}
+            <div style={{ position: 'relative', height: 96, display: 'flex', gap: 10 }}>
+              {noteColors.map((c, i) => (
+                <div key={i} style={{
+                  width: 56, height: 80, borderRadius: 8, background: c, flexShrink: 0,
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+                  transform: `rotate(${(i - 3) * 2.2}deg) translateY(${i % 2 === 0 ? 4 : 14}px)`,
+                  display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 8,
+                  fontFamily: "'Caveat', cursive", fontSize: 10, color: 'rgba(28,25,23,0.5)',
+                  transition: 'transform 0.25s',
+                }}/>
+              ))}
+            </div>
+          </div>
+
+          {/* Drawing Tools — animated SVG strokes */}
+          <div style={{ borderRadius: 24, background: BG, border: '1px solid rgba(0,0,0,0.06)', padding: '36px', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ fontFamily: FD, fontSize: 11, fontWeight: 700, color: '#7C3AED', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>Drawing</div>
+            <h3 style={{ fontFamily: FD, fontSize: 22, fontWeight: 700, color: T1, letterSpacing: '-0.02em', lineHeight: 1.25, marginBottom: 10 }}>
+              Hand-drawn shapes<br/>that feel human.
+            </h3>
+            <p style={{ fontFamily: FD, fontSize: 14, color: T2, lineHeight: 1.65, marginBottom: 28 }}>
+              Rough.js gives every rect, circle, and arrow a natural wobble. Pen, shapes, text, arrows, frames.
+            </p>
+            <svg width="100%" height="72" viewBox="0 0 380 72" style={{ overflow: 'visible' }}>
+              <path
+                d="M8 52 C60 8, 130 64, 190 36 C250 8, 320 60, 372 28"
+                stroke="#7C3AED" strokeWidth="2.5" fill="none" strokeLinecap="round"
+                strokeDasharray="420" style={{ '--sd': '420', animation: 'sdraw 2s cubic-bezier(0.4,0,0.2,1) 0.2s forwards' } as React.CSSProperties}
+              />
+              <path
+                d="M8 62 C70 30, 140 68, 210 44 C270 24, 340 58, 372 42"
+                stroke="#EF4444" strokeWidth="1.8" fill="none" strokeLinecap="round" opacity="0.55"
+                strokeDasharray="400" style={{ '--sd': '400', animation: 'sdraw 2s cubic-bezier(0.4,0,0.2,1) 0.7s forwards' } as React.CSSProperties}
+              />
+              <path
+                d="M8 40 C80 14, 160 60, 240 32 C300 12, 350 44, 372 20"
+                stroke="#10B981" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"
+                strokeDasharray="390" style={{ '--sd': '390', animation: 'sdraw 2s cubic-bezier(0.4,0,0.2,1) 1.1s forwards' } as React.CSSProperties}
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* ── Row 3: 3 utility cards ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+
+          {/* Export */}
+          <div style={{ borderRadius: 24, background: BG, border: '1px solid rgba(0,0,0,0.06)', padding: '28px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(139,92,246,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: T1, marginBottom: 6 }}>Export</div>
+            <div style={{ fontFamily: FD, fontSize: 14, color: T2, lineHeight: 1.6, marginBottom: 18 }}>PNG or JPEG at 1×, 2×, or 3× resolution. Pixel-perfect output.</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['1×','2×','3×'].map((s, i) => (
+                <span key={s} style={{ padding: '4px 12px', borderRadius: 100, background: i === 1 ? '#7C3AED' : BG2, color: i === 1 ? 'white' : '#64748B', fontFamily: FD, fontSize: 12, fontWeight: 600, border: `1px solid ${i === 1 ? 'transparent' : 'rgba(0,0,0,0.07)'}` }}>{s}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Keyboard-first */}
+          <div style={{ borderRadius: 24, background: BG, border: '1px solid rgba(0,0,0,0.06)', padding: '28px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(15,23,42,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0F172A" strokeWidth="2" strokeLinecap="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3l-4 4-4-4"/></svg>
+            </div>
+            <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: T1, marginBottom: 6 }}>Keyboard-first</div>
+            <div style={{ fontFamily: FD, fontSize: 14, color: T2, lineHeight: 1.6, marginBottom: 18 }}>Every tool one key away. No menus, no friction.</div>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {['V','N','T','R','D','F'].map(k => (
+                <span key={k} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 6, background: BG2, border: '1px solid rgba(0,0,0,0.1)', fontFamily: FM, fontSize: 12, fontWeight: 600, color: T1, boxShadow: '0 1px 0 rgba(0,0,0,0.1), 0 -1px 0 rgba(0,0,0,0.06) inset' }}>{k}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Light & Dark */}
+          <div style={{ borderRadius: 24, background: BG, border: '1px solid rgba(0,0,0,0.06)', padding: '28px', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(6,182,212,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06B6D4" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </div>
+            <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: T1, marginBottom: 6 }}>Light & Dark</div>
+            <div style={{ fontFamily: FD, fontSize: 14, color: T2, lineHeight: 1.6, marginBottom: 18 }}>Seamless theme switching. Pure dark or iOS light — your canvas, your preference.</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 44, height: 24, borderRadius: 100, background: '#7C3AED', position: 'relative', cursor: 'pointer', flexShrink: 0 }}>
+                <div style={{ position: 'absolute', right: 3, top: 3, width: 18, height: 18, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'right 0.2s' }}/>
+              </div>
+              <span style={{ fontFamily: FD, fontSize: 12, color: '#64748B' }}>Dark mode on</span>
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
@@ -293,13 +451,11 @@ function CanvasShowcase() {
             No page boundaries, no export friction. Just you and an infinite surface to explore.
           </p>
           {points.map(p => (
-            <div key={p.label} style={{ display: 'flex', gap: 14, marginBottom: 20 }}>
-              <div style={{ width: 22, height: 22, borderRadius: '50%', background: ACCENTL, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-              </div>
+            <div key={p.label} style={{ display: 'flex', gap: 14, marginBottom: 20, alignItems: 'flex-start' }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#7C3AED', flexShrink: 0, marginTop: 7 }}/>
               <div>
-                <div style={{ fontFamily: FD, fontSize: 14, fontWeight: 700, color: T1, marginBottom: 3 }}>{p.label}</div>
-                <div style={{ fontFamily: FD, fontSize: 13, color: T2, lineHeight: 1.55 }}>{p.desc}</div>
+                <div style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: T1, marginBottom: 4 }}>{p.label}</div>
+                <div style={{ fontFamily: FD, fontSize: 14, color: '#64748B', lineHeight: 1.55 }}>{p.desc}</div>
               </div>
             </div>
           ))}
@@ -336,43 +492,6 @@ function CanvasShowcase() {
               Design System
             </div>
           </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Collaboration ──────────────────────────────────────────────────────── */
-function Collaboration() {
-  return (
-    <section style={{ padding: '96px 24px', background: BG2 }}>
-      <div style={{ maxWidth: 1080, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 52 }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginBottom: 16 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10B981' }}/>
-            <span style={{ fontFamily: FD, fontSize: 12, fontWeight: 700, color: '#10B981', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Collaboration</span>
-          </div>
-          <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 800, color: T1, letterSpacing: '-0.03em', marginBottom: 14 }}>
-            Build together in real time.
-          </h2>
-          <p style={{ fontFamily: FD, fontSize: 17, color: T2, maxWidth: 420, margin: '0 auto', lineHeight: 1.6 }}>
-            Share a link. See everyone's cursors. Edit together without conflicts.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
-          {[
-            { color: '#EF4444', title: 'Live cursors', desc: 'See named, colored cursors for every collaborator in real time. No lag.' },
-            { color: '#10B981', title: 'Instant sync', desc: 'Every stroke, move, and edit syncs in under 80ms across all participants.' },
-            { color: '#F59E0B', title: 'Presence avatars', desc: 'See who is on the canvas at a glance. Avatars stack in the header.' },
-            { color: '#8B5CF6', title: 'No account needed', desc: 'Just share the URL. Anyone can join and collaborate, no sign-up required.' },
-          ].map(f => (
-            <div key={f.title} style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 18, padding: '26px 22px' }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: f.color, marginBottom: 16 }}/>
-              <div style={{ fontFamily: FD, fontSize: 15, fontWeight: 700, color: T1, marginBottom: 8 }}>{f.title}</div>
-              <div style={{ fontFamily: FD, fontSize: 13, color: T2, lineHeight: 1.6 }}>{f.desc}</div>
-            </div>
-          ))}
         </div>
       </div>
     </section>
@@ -1117,15 +1236,15 @@ function FinalCTA() {
         <div style={{ position: 'absolute', top: -60, right: -60, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.12)' }}/>
         <div style={{ position: 'absolute', bottom: -40, left: -40, width: 160, height: 160, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }}/>
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 800, color: '#fff', letterSpacing: '-0.035em', lineHeight: 1.1, marginBottom: 18 }}>
+          <h2 style={{ fontFamily: FD, fontSize: 'clamp(28px, 5vw, 52px)', fontWeight: 700, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.1, marginBottom: 18 }}>
             Turn chaos into clarity.
           </h2>
           <p style={{ fontFamily: FD, fontSize: 17, color: 'rgba(255,255,255,0.78)', lineHeight: 1.65, maxWidth: 380, margin: '0 auto 36px' }}>
             Open your first board and start building. No sign-up, no setup, no friction.
           </p>
-          <Link href="/boards" style={{ fontFamily: FD, fontSize: 16, fontWeight: 700, color: ACCENT, background: '#fff', textDecoration: 'none', padding: '13px 32px', borderRadius: 13, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.15)', transition: 'transform 0.12s' }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = '')}>
+          <Link href="/boards" style={{ fontFamily: FD, fontSize: 16, fontWeight: 600, color: '#6D28D9', background: '#fff', textDecoration: 'none', padding: '16px 28px', borderRadius: 14, display: 'inline-flex', alignItems: 'center', gap: 8, boxShadow: '0 10px 40px rgba(0,0,0,0.2)' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 16px 48px rgba(0,0,0,0.25)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(0,0,0,0.2)'; (e.currentTarget as HTMLElement).style.transform = ''; }}>
             Open Inkspace — it&apos;s free
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </Link>
@@ -1200,7 +1319,6 @@ export default function LandingPage() {
       <Hero />
       <Features />
       <CanvasShowcase />
-      <Collaboration />
       <Templates />
       <Integrations />
       <FinalCTA />

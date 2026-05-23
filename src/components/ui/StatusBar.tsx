@@ -76,33 +76,23 @@ export const StatusBar: React.FC<StatusBarProps> = ({ viewportWidth, viewportHei
 
       {/* Center: toggles */}
       <div className="flex items-center gap-1">
-        <button
-          onClick={store.toggleGrid}
-          className="rounded-[6px] px-2 py-0.5 transition-colors"
-          style={{
-            fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            background: store.showGrid ? 'var(--accent-glow)' : 'none',
-            color: store.showGrid ? 'var(--accent)' : 'var(--text-muted)',
-          }}
-        >Grid</button>
-        <button
-          onClick={store.toggleSnap}
-          className="rounded-[6px] px-2 py-0.5 transition-colors"
-          style={{
-            fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            background: store.snap ? 'var(--accent-glow)' : 'none',
-            color: store.snap ? 'var(--accent)' : 'var(--text-muted)',
-          }}
-        >Snap</button>
-        <button
-          onClick={store.toggleMini}
-          className="rounded-[6px] px-2 py-0.5 transition-colors"
-          style={{
-            fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)',
-            background: store.showMini ? 'var(--accent-glow)' : 'none',
-            color: store.showMini ? 'var(--accent)' : 'var(--text-muted)',
-          }}
-        >Map</button>
+        {[
+          { label: 'Grid', active: store.showGrid, onClick: store.toggleGrid },
+          { label: 'Snap', active: store.snap,     onClick: store.toggleSnap },
+          { label: 'Map',  active: store.showMini, onClick: store.toggleMini },
+        ].map(({ label, active, onClick }) => (
+          <button
+            key={label}
+            onClick={onClick}
+            className="rounded-[6px] px-2 py-0.5 transition-colors"
+            style={{
+              fontSize: 12, border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)',
+              background: active ? 'rgba(237,233,254,1)' : 'none',
+              color: active ? '#6D28D9' : 'var(--text-muted)',
+              fontWeight: active ? 500 : 400,
+            }}
+          >{label}</button>
+        ))}
       </div>
 
       {/* Right: object count + undo/redo */}
