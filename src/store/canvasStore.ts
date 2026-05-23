@@ -43,6 +43,7 @@ export interface Viewport {
 
 interface CanvasState {
   theme: 'light' | 'dark';
+  boardId: string | null;
   boardName: string;
   viewport: Viewport;
   elements: CanvasElement[];
@@ -54,6 +55,7 @@ interface CanvasState {
   clipboard: CanvasElement[] | null;
   history: { past: string[]; future: string[] };
 
+  setBoardId: (id: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
   setBoardName: (name: string) => void;
@@ -77,7 +79,7 @@ interface CanvasState {
   distributeSelection: (axis: 'x' | 'y') => void;
   fitToScreen: (viewportWidth: number, viewportHeight: number) => void;
   importBoard: (elements: CanvasElement[], name?: string, viewport?: Viewport) => void;
-  hydrate: () => void;
+  hydrate: (boardId?: string) => void;
   saveToStorage: () => void;
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
@@ -89,6 +91,7 @@ const uid = () => 'el_' + Math.random().toString(36).slice(2, 9);
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   theme: 'light',
+  boardId: null,
   boardName: 'Untitled Board',
   viewport: { x: 260, y: 140, zoom: 1 },
   elements: [],
@@ -99,6 +102,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   showMini: true,
   clipboard: null,
   history: { past: [], future: [] },
+
+  setBoardId: (id) => set({ boardId: id }),
 
   setTheme: (theme) => {
     set({ theme });
@@ -364,10 +369,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get().saveToStorage();
   },
 
-  hydrate: () => {
+  hydrate: (boardId) => {
     if (typeof window === 'undefined') return;
+    const id = boardId ?? get().boardId;
     try {
-      const saved = localStorage.getItem('inkspace-board');
+      const key = id ? `inkspace-board-${id}` : 'inkspace-board';
+      const saved = localStorage.getItem(key);
       if (saved) {
         const data = JSON.parse(saved);
         set((state) => ({
@@ -378,6 +385,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           snap: !!data.snap,
           showMini: data.showMini !== false,
         }));
+      } else {
+        // Fresh board — reset state
+        set({ boardName: 'Untitled Board', viewport: { x: 260, y: 140, zoom: 1 }, elements: [], selected: [], history: { past: [], future: [] } });
       }
       const t = localStorage.getItem('inkspace-theme') as 'light' | 'dark';
       get().setTheme(t || 'light');
@@ -386,10 +396,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   saveToStorage: () => {
     if (typeof window === 'undefined') return;
-    const { boardName, viewport, elements, showGrid, snap, showMini, theme } = get();
+    const { boardId, boardName, viewport, elements, showGrid, snap, showMini, theme } = get();
     try {
       localStorage.setItem('inkspace-theme', theme);
-      localStorage.setItem('inkspace-board', JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini }));
+      const key = boardId ? `inkspace-board-${boardId}` : 'inkspace-board';
+      localStorage.setItem(key, JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini }));
     } catch { /* ignore quota errors */ }
   },
 }));

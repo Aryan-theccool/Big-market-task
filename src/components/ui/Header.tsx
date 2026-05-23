@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import { useCanvasStore } from '../../store/canvasStore';
 import { useCollabStore } from '../../store/collabStore';
 import { compressAndResizeImage } from '../../utils/imageHelper';
@@ -9,6 +9,7 @@ interface HeaderProps {
   toast: (msg: string, color?: string) => void;
   onOpenHelp: () => void;
   onExport: () => void;
+  onShare?: () => void;
   viewportRef: React.RefObject<HTMLDivElement>;
 }
 
@@ -49,23 +50,10 @@ function initials(name: string) {
   return name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
 }
 
-export const Header: React.FC<HeaderProps> = ({ toast, onOpenHelp, onExport, viewportRef }) => {
+export const Header: React.FC<HeaderProps> = ({ toast, onOpenHelp, onExport, onShare, viewportRef }) => {
   const store = useCanvasStore();
   const { remoteUsers } = useCollabStore();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showSharePopover, setShowSharePopover] = useState(false);
-
-  const handleShare = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
-    try {
-      await navigator.clipboard.writeText(url);
-      toast('Link copied to clipboard!', 'success');
-    } catch {
-      toast('Copy this URL: ' + url, 'info');
-    }
-    setShowSharePopover(true);
-    setTimeout(() => setShowSharePopover(false), 3000);
-  };
 
   const handleExportJSON = () => {
     const data = JSON.stringify({ boardName: store.boardName, viewport: store.viewport, elements: store.elements }, null, 2);
@@ -175,27 +163,14 @@ export const Header: React.FC<HeaderProps> = ({ toast, onOpenHelp, onExport, vie
       {/* Right: actions */}
       <div className="flex items-center gap-1">
         {/* Share link */}
-        <div className="relative">
-          <button
-            onClick={handleShare}
-            className="primary-button hidden md:flex items-center gap-1.5"
-            style={{ padding: '5px 12px', fontSize: 13 }}
-          >
-            <ShareIcon />
-            Share
-          </button>
-          {showSharePopover && (
-            <div
-              className="absolute right-0 top-[calc(100%+8px)] glass-panel rounded-[12px] px-3 py-2.5 whitespace-nowrap"
-              style={{ boxShadow: 'var(--shadow-lg)', fontSize: 12, fontFamily: 'var(--font-ui)', color: 'var(--text-secondary)', minWidth: 220 }}
-            >
-              <p style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Link copied!</p>
-              <p style={{ color: 'var(--text-muted)', fontSize: 11, wordBreak: 'break-all' }}>
-                {typeof window !== 'undefined' ? window.location.href : ''}
-              </p>
-            </div>
-          )}
-        </div>
+        <button
+          onClick={onShare}
+          className="primary-button hidden md:flex items-center gap-1.5"
+          style={{ padding: '5px 12px', fontSize: 13 }}
+        >
+          <ShareIcon />
+          Share
+        </button>
 
         <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
 

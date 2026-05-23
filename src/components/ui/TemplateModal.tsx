@@ -4,11 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore, CanvasElement } from '../../store/canvasStore';
 
-// ─── Templates ────────────────────────────────────────────────────────────────
+const freshId = () => 'tpl_' + Math.random().toString(36).slice(2, 9);
 
-const uid = () => 'tpl_' + Math.random().toString(36).slice(2, 9);
-
-const TEMPLATES: { id: string; label: string; description: string; color: string; icon: string; elements: CanvasElement[] }[] = [
+// Template definitions — IDs are placeholders; fresh ones are generated on apply
+const TEMPLATES: {
+  id: string;
+  label: string;
+  description: string;
+  color: string;
+  icon: string;
+  elements: Omit<CanvasElement, 'id'>[];
+}[] = [
   {
     id: 'blank',
     label: 'Blank',
@@ -24,13 +30,13 @@ const TEMPLATES: { id: string; label: string; description: string; color: string
     color: '#EFF6FF',
     icon: '🏃',
     elements: [
-      { id: uid(), type: 'frame', x: 60,  y: 120, w: 240, h: 380, fill: 'rgba(0,122,255,0.06)', stroke: '#007AFF', strokeWidth: 1.5, roughness: 0, z: 0, text: 'To Do' },
-      { id: uid(), type: 'frame', x: 320, y: 120, w: 240, h: 380, fill: 'rgba(255,149,0,0.06)', stroke: '#FF9500', strokeWidth: 1.5, roughness: 0, z: 1, text: 'In Progress' },
-      { id: uid(), type: 'frame', x: 580, y: 120, w: 240, h: 380, fill: 'rgba(52,199,89,0.06)', stroke: '#34C759', strokeWidth: 1.5, roughness: 0, z: 2, text: 'Done' },
-      { id: uid(), type: 'note', x: 80,  y: 160, w: 200, h: 90, color: 'yellow', text: 'Design new onboarding', z: 3 },
-      { id: uid(), type: 'note', x: 80,  y: 265, w: 200, h: 90, color: 'blue',   text: 'Fix login bug', z: 4 },
-      { id: uid(), type: 'note', x: 340, y: 160, w: 200, h: 90, color: 'orange', text: 'Update API docs', z: 5 },
-      { id: uid(), type: 'note', x: 600, y: 160, w: 200, h: 90, color: 'green',  text: 'Deploy v2.1', z: 6 },
+      { type: 'frame', x: 60,  y: 120, w: 240, h: 380, fill: 'rgba(0,122,255,0.06)', stroke: '#007AFF', strokeWidth: 1.5, roughness: 0, z: 0, text: 'To Do' },
+      { type: 'frame', x: 320, y: 120, w: 240, h: 380, fill: 'rgba(255,149,0,0.06)', stroke: '#FF9500', strokeWidth: 1.5, roughness: 0, z: 1, text: 'In Progress' },
+      { type: 'frame', x: 580, y: 120, w: 240, h: 380, fill: 'rgba(52,199,89,0.06)', stroke: '#34C759', strokeWidth: 1.5, roughness: 0, z: 2, text: 'Done' },
+      { type: 'note', x: 80,  y: 160, w: 200, h: 90, color: 'yellow', text: 'Design new onboarding', z: 3 },
+      { type: 'note', x: 80,  y: 265, w: 200, h: 90, color: 'blue',   text: 'Fix login bug', z: 4 },
+      { type: 'note', x: 340, y: 160, w: 200, h: 90, color: 'orange', text: 'Update API docs', z: 5 },
+      { type: 'note', x: 600, y: 160, w: 200, h: 90, color: 'green',  text: 'Deploy v2.1', z: 6 },
     ],
   },
   {
@@ -40,15 +46,15 @@ const TEMPLATES: { id: string; label: string; description: string; color: string
     color: '#FFF7ED',
     icon: '🧠',
     elements: [
-      { id: uid(), type: 'note', x: 340, y: 240, w: 180, h: 80, color: 'purple', text: '💡 Big Idea', z: 0 },
-      { id: uid(), type: 'note', x: 80,  y: 100, w: 160, h: 70, color: 'yellow', text: 'User Research', z: 1 },
-      { id: uid(), type: 'note', x: 560, y: 100, w: 160, h: 70, color: 'blue',   text: 'Market Trends', z: 2 },
-      { id: uid(), type: 'note', x: 80,  y: 360, w: 160, h: 70, color: 'pink',   text: 'Competitor Gap', z: 3 },
-      { id: uid(), type: 'note', x: 560, y: 360, w: 160, h: 70, color: 'green',  text: 'Technical Edge', z: 4 },
-      { id: uid(), type: 'arrow', x: 340, y: 280, x2: 240, y2: 170, stroke: '#8B5CF6', strokeWidth: 2, roughness: 0.8, z: 5 },
-      { id: uid(), type: 'arrow', x: 520, y: 280, x2: 560, y2: 170, stroke: '#3B82F6', strokeWidth: 2, roughness: 0.8, z: 6 },
-      { id: uid(), type: 'arrow', x: 340, y: 300, x2: 240, y2: 395, stroke: '#EC4899', strokeWidth: 2, roughness: 0.8, z: 7 },
-      { id: uid(), type: 'arrow', x: 520, y: 300, x2: 560, y2: 395, stroke: '#22C55E', strokeWidth: 2, roughness: 0.8, z: 8 },
+      { type: 'note', x: 340, y: 240, w: 180, h: 80, color: 'purple', text: 'Big Idea', z: 0 },
+      { type: 'note', x: 80,  y: 100, w: 160, h: 70, color: 'yellow', text: 'User Research', z: 1 },
+      { type: 'note', x: 560, y: 100, w: 160, h: 70, color: 'blue',   text: 'Market Trends', z: 2 },
+      { type: 'note', x: 80,  y: 360, w: 160, h: 70, color: 'pink',   text: 'Competitor Gap', z: 3 },
+      { type: 'note', x: 560, y: 360, w: 160, h: 70, color: 'green',  text: 'Technical Edge', z: 4 },
+      { type: 'arrow', x: 340, y: 280, x2: 240, y2: 170, stroke: '#8B5CF6', strokeWidth: 2, roughness: 0.8, z: 5 },
+      { type: 'arrow', x: 520, y: 280, x2: 560, y2: 170, stroke: '#3B82F6', strokeWidth: 2, roughness: 0.8, z: 6 },
+      { type: 'arrow', x: 340, y: 300, x2: 240, y2: 395, stroke: '#EC4899', strokeWidth: 2, roughness: 0.8, z: 7 },
+      { type: 'arrow', x: 520, y: 300, x2: 560, y2: 395, stroke: '#22C55E', strokeWidth: 2, roughness: 0.8, z: 8 },
     ],
   },
   {
@@ -58,20 +64,18 @@ const TEMPLATES: { id: string; label: string; description: string; color: string
     color: '#F0FDF4',
     icon: '🗺️',
     elements: [
-      { id: uid(), type: 'text', x: 60, y: 60, text: 'Product Roadmap 2025', fontSize: 28, stroke: '#000000', z: 0 },
-      { id: uid(), type: 'rect', x: 60,  y: 110, w: 160, h: 36, fill: '#007AFF', stroke: '#007AFF', strokeWidth: 0, roughness: 0, radius: 8, z: 1, text: 'Q1' },
-      { id: uid(), type: 'rect', x: 240, y: 110, w: 160, h: 36, fill: '#34C759', stroke: '#34C759', strokeWidth: 0, roughness: 0, radius: 8, z: 2, text: 'Q2' },
-      { id: uid(), type: 'rect', x: 420, y: 110, w: 160, h: 36, fill: '#FF9500', stroke: '#FF9500', strokeWidth: 0, roughness: 0, radius: 8, z: 3, text: 'Q3' },
-      { id: uid(), type: 'rect', x: 600, y: 110, w: 160, h: 36, fill: '#FF3B30', stroke: '#FF3B30', strokeWidth: 0, roughness: 0, radius: 8, z: 4, text: 'Q4' },
-      { id: uid(), type: 'note', x: 60,  y: 165, w: 160, h: 80, color: 'blue',   text: 'Launch beta', z: 5 },
-      { id: uid(), type: 'note', x: 240, y: 165, w: 160, h: 80, color: 'green',  text: 'GA release', z: 6 },
-      { id: uid(), type: 'note', x: 420, y: 165, w: 160, h: 80, color: 'orange', text: 'Enterprise tier', z: 7 },
-      { id: uid(), type: 'note', x: 600, y: 165, w: 160, h: 80, color: 'pink',   text: 'Mobile app', z: 8 },
+      { type: 'text', x: 60, y: 60, text: 'Product Roadmap 2025', fontSize: 28, stroke: '#000000', z: 0 },
+      { type: 'rect', x: 60,  y: 110, w: 160, h: 36, fill: '#007AFF', stroke: '#007AFF', strokeWidth: 0, roughness: 0, radius: 8, z: 1, text: 'Q1' },
+      { type: 'rect', x: 240, y: 110, w: 160, h: 36, fill: '#34C759', stroke: '#34C759', strokeWidth: 0, roughness: 0, radius: 8, z: 2, text: 'Q2' },
+      { type: 'rect', x: 420, y: 110, w: 160, h: 36, fill: '#FF9500', stroke: '#FF9500', strokeWidth: 0, roughness: 0, radius: 8, z: 3, text: 'Q3' },
+      { type: 'rect', x: 600, y: 110, w: 160, h: 36, fill: '#FF3B30', stroke: '#FF3B30', strokeWidth: 0, roughness: 0, radius: 8, z: 4, text: 'Q4' },
+      { type: 'note', x: 60,  y: 165, w: 160, h: 80, color: 'blue',   text: 'Launch beta', z: 5 },
+      { type: 'note', x: 240, y: 165, w: 160, h: 80, color: 'green',  text: 'GA release', z: 6 },
+      { type: 'note', x: 420, y: 165, w: 160, h: 80, color: 'orange', text: 'Enterprise tier', z: 7 },
+      { type: 'note', x: 600, y: 165, w: 160, h: 80, color: 'pink',   text: 'Mobile app', z: 8 },
     ],
   },
 ];
-
-// ─── Component ─────────────────────────────────────────────────────────────────
 
 interface TemplateModalProps {
   onClose: () => void;
@@ -81,11 +85,16 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
   const store = useCanvasStore();
   const [selected, setSelected] = useState<string | null>(null);
 
-  const pick = (tpl: typeof TEMPLATES[0]) => {
+  const applyTemplate = (tpl: typeof TEMPLATES[0]) => {
     setSelected(tpl.id);
     setTimeout(() => {
-      store.importBoard(tpl.elements, tpl.id === 'blank' ? 'Untitled Board' : tpl.label);
-      if (typeof window !== 'undefined') localStorage.setItem('inkspace-visited', '1');
+      // Generate fresh IDs on every apply — prevents ID collisions if template
+      // is applied to the same board more than once
+      const elements: CanvasElement[] = tpl.elements.map((el) => ({
+        ...el,
+        id: freshId(),
+      } as CanvasElement));
+      store.importBoard(elements, tpl.id === 'blank' ? 'Untitled Board' : tpl.label);
       onClose();
     }, 180);
   };
@@ -97,7 +106,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      onClick={() => pick(TEMPLATES[0])} // click outside = blank
+      onClick={() => applyTemplate(TEMPLATES[0])}
     >
       <motion.div
         className="glass-panel overflow-hidden w-full sm:max-w-[480px]"
@@ -133,7 +142,7 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
           {TEMPLATES.map((tpl, idx) => (
             <motion.button
               key={tpl.id}
-              onClick={() => pick(tpl)}
+              onClick={() => applyTemplate(tpl)}
               className="flex flex-col items-start gap-2 p-4 rounded-[16px] text-left transition-colors"
               style={{
                 background: selected === tpl.id ? 'var(--accent-glow)' : 'var(--bg-secondary)',
@@ -146,7 +155,6 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.97 }}
             >
-              {/* Thumbnail */}
               <div
                 className="w-full rounded-[10px] flex items-center justify-center"
                 style={{ height: 72, background: tpl.color, fontSize: 28 }}
@@ -169,18 +177,36 @@ export const TemplateModal: React.FC<TemplateModalProps> = ({ onClose }) => {
   );
 };
 
-// ─── Hook: show on first visit ─────────────────────────────────────────────────
+// ─── Hook: show on first visit to each board ──────────────────────────────────
 
-export function useTemplateModal() {
+export function useTemplateModal(boardId: string) {
   const [open, setOpen] = useState(false);
+  // Auto-dismiss if the board already has elements (e.g. loaded from storage or Y.js)
+  const elementCount = useCanvasStore((s) => s.elements.length);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (!localStorage.getItem('inkspace-visited')) {
-      const t = setTimeout(() => setOpen(true), 600);
+    if (typeof window === 'undefined' || !boardId) return;
+    // Per-board flag — each new board gets the template picker once
+    const key = `inkspace-tpl-${boardId}`;
+    if (!localStorage.getItem(key)) {
+      const t = setTimeout(() => setOpen(true), 700);
       return () => clearTimeout(t);
     }
-  }, []);
+  }, [boardId]);
 
-  return { open, close: () => { setOpen(false); localStorage.setItem('inkspace-visited', '1'); } };
+  // If board already has content (restored from storage), hide immediately
+  useEffect(() => {
+    if (elementCount > 0) setOpen(false);
+  }, [elementCount]);
+
+  return {
+    open,
+    openModal: () => setOpen(true),
+    close: () => {
+      setOpen(false);
+      if (typeof window !== 'undefined' && boardId) {
+        localStorage.setItem(`inkspace-tpl-${boardId}`, '1');
+      }
+    },
+  };
 }

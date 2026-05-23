@@ -6,21 +6,28 @@ export type AwarenessUser = {
   cursor: { x: number; y: number } | null;
 };
 
-// One Y.Doc per room — survive hot-reload
+// Singleton Y.Doc per room — survives hot-reload and StrictMode double-mount
 const rooms = new Map<string, { doc: Y.Doc; yElements: Y.Map<any> }>();
+
+// Cache the Promise itself so concurrent calls never create two providers
+// for the same room — this is what prevents the "already exists" error
+const providerPromises = new Map<string, Promise<any>>();
 
 export function getYRoom(roomId: string) {
   if (rooms.has(roomId)) return rooms.get(roomId)!;
   const doc = new Y.Doc();
   const yElements = doc.getMap<any>('elements');
-  const entry = { doc, yElements };
-  rooms.set(roomId, entry);
-  return entry;
+  rooms.set(roomId, { doc, yElements });
+  return rooms.get(roomId)!;
 }
 
-export async function initWebRTC(roomId: string, doc: Y.Doc) {
-  const { WebrtcProvider } = await import('y-webrtc');
-  return new WebrtcProvider(roomId, doc, {
-    signaling: ['wss://signaling.yjs.dev'],
-  });
+export function getOrInitProvider(roomId: string, doc: Y.Doc): Promise<any> {
+  if (providerPromises.has(roomId)) return providerPromises.get(roomId)!;
+  // Empty signaling array = BroadcastChannel only (same browser, no external WS)
+  // Avoids unreliable public signaling servers that spam console errors
+  const p = import('y-webrtc').then(({ WebrtcProvider }) =>
+    new WebrtcProvider(roomId, doc, { signaling: [] })
+  );
+  providerPromises.set(roomId, p);
+  return p;
 }
