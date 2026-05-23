@@ -1,430 +1,299 @@
 'use client';
 
 import React from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore, CanvasElement } from '../../store/canvasStore';
-import { Trash2, ArrowUp, ArrowDown, ChevronUp, ChevronDown, LayoutGrid, CheckSquare } from 'lucide-react';
 
-interface InspectorPanelProps {
-  toast: (msg: string, color?: string) => void;
+const NOTE_COLORS: Record<string, { bg: string; dark: string; text: string }> = {
+  yellow: { bg: '#FFF59D', dark: '#F9A825', text: '#4A3800' },
+  pink:   { bg: '#FCE4EC', dark: '#E91E63', text: '#4A0020' },
+  blue:   { bg: '#E3F2FD', dark: '#1976D2', text: '#003060' },
+  green:  { bg: '#E8F5E9', dark: '#388E3C', text: '#003010' },
+  purple: { bg: '#F3E5F5', dark: '#7B1FA2', text: '#2A003A' },
+  orange: { bg: '#FFF3E0', dark: '#F57C00', text: '#3A1800' },
+  white:  { bg: '#FAFAFA', dark: '#E0E0E0', text: '#1C1C1E' },
+};
+
+/* ─── Row ─── */
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-ui)', letterSpacing: '0.08em' }}>
+      {children}
+    </p>
+  );
 }
 
-export const InspectorPanel: React.FC<InspectorPanelProps> = ({ toast }) => {
+function GroupedList({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="overflow-hidden divide-y" style={{ borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
+      {children}
+    </div>
+  );
+}
+
+function ListRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
+      <span style={{ fontSize: 15, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)' }}>{label}</span>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function NumInput({ value, onChange, min, max }: { value: number; onChange: (v: number) => void; min?: number; max?: number }) {
+  return (
+    <input
+      type="number"
+      value={Math.round(value)}
+      onChange={(e) => onChange(parseFloat(e.target.value))}
+      min={min} max={max}
+      className="bg-transparent text-right outline-none tabular-nums"
+      style={{ width: 64, fontSize: 15, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)' }}
+      onFocus={(e) => (e.currentTarget.parentElement!.style.background = 'var(--accent-glow)')}
+      onBlur={(e) => (e.currentTarget.parentElement!.style.background = 'transparent')}
+    />
+  );
+}
+
+function Slider({ value, onChange, min, max, step = 1 }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="w-20 h-1 rounded-full appearance-none cursor-pointer"
+        style={{ accentColor: 'var(--accent)' }}
+      />
+      <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', minWidth: 32, textAlign: 'right' }}>
+        {typeof value === 'number' && step < 1 ? value.toFixed(1) : Math.round(value)}
+      </span>
+    </div>
+  );
+}
+
+function ColorSwatch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="color"
+        value={value?.startsWith('#') ? value : '#007AFF'}
+        onChange={(e) => onChange(e.target.value)}
+        className="rounded cursor-pointer border-0"
+        style={{ width: 24, height: 24, padding: 0 }}
+      />
+      <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+        {value?.startsWith('#') ? value.toUpperCase() : value}
+      </span>
+    </div>
+  );
+}
+
+const TYPE_LABELS: Record<string, string> = {
+  note: 'Sticky Note', handwriting: 'Handwriting', text: 'Text',
+  rect: 'Rectangle', circle: 'Circle', line: 'Line',
+  arrow: 'Arrow', draw: 'Freehand', frame: 'Frame', image: 'Image',
+};
+
+export const InspectorPanel: React.FC = () => {
   const store = useCanvasStore();
-  
-  if (!store.selected.length) return null;
+  const { selected, elements, updateElement } = store;
 
-  const isMultiSelect = store.selected.length > 1;
+  const isOpen = selected.length > 0;
+  const el = elements.find((e) => e.id === selected[0]);
 
-  // Handle Multi-select inspector layout
-  if (isMultiSelect) {
-    return (
-      <aside className="absolute right-4 top-16 bottom-12 w-66 rounded-2xl glass p-4 pointer-events-auto z-25 flex flex-col gap-4 shadow-lg overflow-y-auto animate-scale-in">
-        <div className="flex items-center justify-between border-b border-borderLine pb-2.5">
-          <span className="font-ui text-xs font-black tracking-wide text-primaryText uppercase">
-            {store.selected.length} Selected
-          </span>
-          <button 
-            className="text-xs hover:bg-hover px-2 py-1 rounded" 
-            onClick={() => store.setSelected([])}
-          >
-            ×
-          </button>
-        </div>
-
-        <div className="flex gap-2">
-          <button 
-            className="flex-1 text-[11px] font-ui h-8 border border-borderLine hover:bg-hover rounded-lg transition-colors flex items-center justify-center gap-1.5"
-            onClick={() => {
-              store.setSelected(store.selected);
-              toast('Group created (visual grouping ready)', '#6366F1');
-            }}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" /> Group ⌘G
-          </button>
-          <button 
-            className="flex-1 text-[11px] font-ui h-8 border border-borderLine hover:bg-red-500/10 text-red-500 rounded-lg transition-colors flex items-center justify-center gap-1.5"
-            onClick={() => {
-              store.deleteSelected();
-              toast('Deleted elements', '#F43F5E');
-            }}
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Delete
-          </button>
-        </div>
-
-        {/* Alignment */}
-        <div className="flex flex-col gap-2">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Align Objects</label>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('left'); toast('Aligned Left', '#6366F1'); }}
-              title="Align Left"
-            >
-              ⊣ Left
-            </button>
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('center'); toast('Aligned Center', '#6366F1'); }}
-              title="Align Center"
-            >
-              ⊥ Center
-            </button>
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('right'); toast('Aligned Right', '#6366F1'); }}
-              title="Align Right"
-            >
-              ⊢ Right
-            </button>
-          </div>
-          <div className="grid grid-cols-3 gap-1.5">
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('top'); toast('Aligned Top', '#6366F1'); }}
-              title="Align Top"
-            >
-              ⊤ Top
-            </button>
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('middle'); toast('Aligned Middle', '#6366F1'); }}
-              title="Align Middle"
-            >
-              ⊞ Mid
-            </button>
-            <button 
-              className="h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors"
-              onClick={() => { store.alignSelection('bottom'); toast('Aligned Bottom', '#6366F1'); }}
-              title="Align Bottom"
-            >
-              ⊦ Btm
-            </button>
-          </div>
-        </div>
-
-        {/* Distribution */}
-        <div className="flex flex-col gap-2">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Distribute</label>
-          <div className="flex gap-2">
-            <button 
-              className="flex-1 h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors flex items-center justify-center gap-1.5"
-              onClick={() => { store.distributeSelection('x'); toast('Distributed Horizontally', '#6366F1'); }}
-              title="Distribute Horizontally"
-            >
-              ↔ Horizontal
-            </button>
-            <button 
-              className="flex-1 h-8 border border-borderLine rounded-lg font-ui text-xs hover:bg-hover transition-colors flex items-center justify-center gap-1.5"
-              onClick={() => { store.distributeSelection('y'); toast('Distributed Vertically', '#6366F1'); }}
-              title="Distribute Vertically"
-            >
-              ↕ Vertical
-            </button>
-          </div>
-        </div>
-      </aside>
-    );
-  }
-
-  // Single select
-  const el = store.elements.find((x) => x.id === store.selected[0]);
-  if (!el) return null;
-
-  const notesPreset = { sun: '#FEF3C7', rose: '#FFE4E6', sky: '#E0F2FE', sage: '#DCFCE7', lilac: '#F3E8FF', peach: '#FFEDD5' };
-
-  const supportsFill = ['rect', 'circle', 'frame', 'text', 'draw'].includes(el.type);
-  const supportsStroke = ['rect', 'circle', 'frame', 'text', 'draw', 'line', 'arrow', 'note'].includes(el.type);
-  const supportsStrokeWidth = ['rect', 'circle', 'frame', 'text', 'draw', 'line', 'arrow', 'note'].includes(el.type);
-  const isLineType = ['line', 'arrow', 'draw'].includes(el.type);
-
-  const getHexColor = (colorStr?: string) => {
-    if (!colorStr) return '#6366F1';
-    if (colorStr.startsWith('#')) return colorStr;
-    if (colorStr.startsWith('rgb')) {
-      const match = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (match) {
-        return '#' + [match[1], match[2], match[3]].map((x) => (+x).toString(16).padStart(2, '0')).join('');
-      }
-    }
-    return '#6366F1';
-  };
-
-  const handlePropChange = (prop: string, val: any) => {
+  const upd = (patch: Partial<CanvasElement>) => {
+    if (!el) return;
     store.pushHistory();
-    const patch: Partial<CanvasElement> = { [prop]: val };
-    
-    // Auto-adjust secondary coordinates for lines/arrows during simple X/Y input shifts
-    if (['line', 'arrow'].includes(el.type) && (prop === 'x' || prop === 'y')) {
-      const delta = val - el[prop as 'x' | 'y'];
-      const oppositeProp = prop === 'x' ? 'x2' : 'y2';
-      if (el[oppositeProp] !== undefined) {
-        patch[oppositeProp] = el[oppositeProp]! + delta;
-      }
-    }
-
-    store.updateElement(el.id, patch);
-  };
-
-  const handleBringFront = () => {
-    store.bringToFront(el.id);
-    toast('Moved element to front', '#6366F1');
-  };
-
-  const handleBringForward = () => {
-    store.bringForward(el.id);
-    toast('Moved element forward', '#6366F1');
-  };
-
-  const handleSendBackward = () => {
-    store.sendBackward(el.id);
-    toast('Moved element backward', '#6366F1');
-  };
-
-  const handleSendBack = () => {
-    store.sendToBack(el.id);
-    toast('Moved element to back', '#6366F1');
+    updateElement(el.id, patch);
   };
 
   return (
-    <aside className="absolute right-4 top-16 bottom-12 w-66 rounded-2xl glass p-4 pointer-events-auto z-25 flex flex-col gap-3.5 shadow-lg overflow-y-auto animate-scale-in">
-      <div className="flex items-center justify-between border-b border-borderLine pb-2.5">
-        <span className="font-ui text-xs font-black tracking-wide text-primaryText uppercase flex items-center gap-1.5">
-          {el.type === 'note' ? '🗒' : el.type === 'rect' ? '▣' : el.type === 'circle' ? '○' : el.type === 'frame' ? '⬡' : '✏'} {el.type}
-        </span>
-        <button 
-          className="text-xs hover:bg-hover px-2 py-1 rounded" 
-          onClick={() => store.setSelected([])}
+    <AnimatePresence>
+      {isOpen && el && (
+        <motion.div
+          id="inkspace-inspector"
+          className="absolute top-[52px] right-0 bottom-[32px] z-[9000] flex-col overflow-y-auto hidden md:flex"
+          style={{
+            width: 280,
+            background: 'var(--bg-panel)',
+            backdropFilter: 'var(--blur-panel)',
+            WebkitBackdropFilter: 'var(--blur-panel)',
+            borderLeft: '0.5px solid var(--border)',
+          }}
+          initial={{ x: 280 }}
+          animate={{ x: 0 }}
+          exit={{ x: 280 }}
+          transition={{ type: 'spring', stiffness: 350, damping: 35 }}
         >
-          ×
-        </button>
-      </div>
-
-      {/* Title input for Frame/Sections */}
-      {el.type === 'frame' && (
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Section Name</label>
-          <input
-            type="text"
-            className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none focus:border-borderFocus"
-            value={el.text || 'Section Frame'}
-            onChange={(e) => handlePropChange('text', e.target.value)}
-          />
-        </div>
-      )}
-
-      {/* Geometry coordinates */}
-      <div className="grid grid-cols-2 gap-2">
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">X</label>
-          <input
-            type="number"
-            className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-            value={Math.round(el.x)}
-            onChange={(e) => handlePropChange('x', +e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Y</label>
-          <input
-            type="number"
-            className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-            value={Math.round(el.y)}
-            onChange={(e) => handlePropChange('y', +e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Dimensions (skipped for lines/vectors) */}
-      {!isLineType && (
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Width</label>
-            <input
-              type="number"
-              className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-              value={Math.round(el.w || 100)}
-              onChange={(e) => handlePropChange('w', +e.target.value)}
-            />
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {TYPE_LABELS[el.type] || el.type}
+            </p>
+            <button
+              onClick={() => store.setSelected([])}
+              className="icon-button"
+              style={{ width: 24, height: 24, borderRadius: 6 }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Height</label>
-            <input
-              type="number"
-              className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-              value={Math.round(el.h || 60)}
-              onChange={(e) => handlePropChange('h', +e.target.value)}
-            />
+
+          <div className="flex-1 p-4 space-y-5 overflow-y-auto">
+
+            {/* Note colors */}
+            {el.type === 'note' && (
+              <div>
+                <SectionTitle>Color</SectionTitle>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(NOTE_COLORS).map(([key, c]) => (
+                    <button
+                      key={key}
+                      onClick={() => upd({ color: key })}
+                      title={key}
+                      className="rounded-full border transition-transform hover:scale-110 active:scale-95"
+                      style={{
+                        width: 24, height: 24,
+                        background: c.bg,
+                        borderColor: el.color === key ? 'var(--accent)' : 'rgba(0,0,0,0.08)',
+                        boxShadow: el.color === key ? '0 0 0 2px var(--accent)' : 'none',
+                        transform: el.color === key ? 'scale(1.15)' : undefined,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Appearance — shapes */}
+            {['rect', 'circle', 'frame'].includes(el.type) && (
+              <div>
+                <SectionTitle>Appearance</SectionTitle>
+                <GroupedList>
+                  <ListRow label="Fill"><ColorSwatch value={el.fill || '#007AFF'} onChange={(v) => upd({ fill: v })} /></ListRow>
+                  <ListRow label="Stroke"><ColorSwatch value={el.stroke || '#1C1C1E'} onChange={(v) => upd({ stroke: v })} /></ListRow>
+                  <ListRow label="Stroke Width"><Slider value={el.strokeWidth ?? 2} onChange={(v) => upd({ strokeWidth: v })} min={0.5} max={8} step={0.5} /></ListRow>
+                  <ListRow label="Roughness"><Slider value={el.roughness ?? 1.2} onChange={(v) => upd({ roughness: v })} min={0} max={3} step={0.1} /></ListRow>
+                  {el.type === 'rect' && (
+                    <ListRow label="Radius"><Slider value={el.radius || 0} onChange={(v) => upd({ radius: v })} min={0} max={40} /></ListRow>
+                  )}
+                </GroupedList>
+              </div>
+            )}
+
+            {/* Line / Arrow */}
+            {['line', 'arrow'].includes(el.type) && (
+              <div>
+                <SectionTitle>Line</SectionTitle>
+                <GroupedList>
+                  <ListRow label="Color"><ColorSwatch value={el.stroke || '#1C1C1E'} onChange={(v) => upd({ stroke: v })} /></ListRow>
+                  <ListRow label="Width"><Slider value={el.strokeWidth ?? 2} onChange={(v) => upd({ strokeWidth: v })} min={0.5} max={8} step={0.5} /></ListRow>
+                </GroupedList>
+              </div>
+            )}
+
+            {/* Text / Handwriting */}
+            {['handwriting', 'text'].includes(el.type) && (
+              <div>
+                <SectionTitle>Typography</SectionTitle>
+                <GroupedList>
+                  <ListRow label="Size"><Slider value={el.fontSize || 24} onChange={(v) => upd({ fontSize: v })} min={10} max={72} /></ListRow>
+                  <ListRow label="Color"><ColorSwatch value={el.stroke || '#000000'} onChange={(v) => upd({ stroke: v })} /></ListRow>
+                </GroupedList>
+              </div>
+            )}
+
+            {/* Image */}
+            {el.type === 'image' && (
+              <div>
+                <SectionTitle>Image</SectionTitle>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: '↔ Flip H', action: () => upd({ flipH: !el.flipH }) },
+                    { label: '↕ Flip V', action: () => upd({ flipV: !el.flipV }) },
+                  ].map(({ label, action }) => (
+                    <button key={label} onClick={action} className="secondary-button justify-center" style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8 }}>{label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Opacity */}
+            <div>
+              <SectionTitle>Appearance</SectionTitle>
+              <GroupedList>
+                <ListRow label="Opacity">
+                  <Slider value={(el.opacity ?? 1) * 100} onChange={(v) => upd({ opacity: v / 100 })} min={0} max={100} />
+                </ListRow>
+                {!['line', 'arrow', 'draw'].includes(el.type) && (
+                  <ListRow label="Rotation">
+                    <Slider value={el.rot || 0} onChange={(v) => upd({ rot: v })} min={-180} max={180} />
+                  </ListRow>
+                )}
+              </GroupedList>
+            </div>
+
+            {/* Position */}
+            <div>
+              <SectionTitle>Position</SectionTitle>
+              <GroupedList>
+                <div className="flex items-center px-4 py-2.5 gap-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
+                  <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>X</span>
+                  <NumInput value={el.x} onChange={(v) => upd({ x: v })} />
+                  <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>Y</span>
+                  <NumInput value={el.y} onChange={(v) => upd({ y: v })} />
+                </div>
+                {el.w !== undefined && el.h !== undefined && (
+                  <div className="flex items-center px-4 py-2.5 gap-3">
+                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>W</span>
+                    <NumInput value={el.w} onChange={(v) => upd({ w: Math.max(20, v) })} min={20} />
+                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>H</span>
+                    <NumInput value={el.h} onChange={(v) => upd({ h: Math.max(20, v) })} min={20} />
+                  </div>
+                )}
+              </GroupedList>
+            </div>
+
+            {/* Arrange */}
+            <div>
+              <SectionTitle>Arrange</SectionTitle>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: '↑ Forward',  action: () => store.bringForward(el.id) },
+                  { label: '↓ Backward', action: () => store.sendBackward(el.id) },
+                  { label: '⇈ Bring Front', action: () => store.bringToFront(el.id) },
+                  { label: '⇊ Send Back',   action: () => store.sendToBack(el.id) },
+                ].map(({ label, action }) => (
+                  <button
+                    key={label} onClick={action}
+                    className="secondary-button justify-center"
+                    style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8 }}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Delete */}
+            <button
+              onClick={store.deleteSelected}
+              className="w-full rounded-[12px] py-3 transition-colors"
+              style={{
+                background: 'var(--bg-secondary)',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--red)',
+                fontFamily: 'var(--font-ui)',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,59,48,0.08)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+            >
+              Delete
+            </button>
           </div>
-        </div>
+        </motion.div>
       )}
-
-      {/* Color styling properties */}
-      {supportsFill && (
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Fill / Background</label>
-          <div className="flex gap-2">
-            <input
-              type="color"
-              className="h-8 w-10 p-0 rounded-md border border-borderLine bg-surface overflow-hidden outline-none cursor-pointer"
-              value={getHexColor(el.fill && el.fill !== 'none' ? el.fill : '#ffffff')}
-              onChange={(e) => handlePropChange('fill', e.target.value)}
-            />
-            <input
-              type="text"
-              className="flex-1 h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-              value={el.fill || 'none'}
-              onChange={(e) => handlePropChange('fill', e.target.value)}
-              placeholder="e.g. #ff0000 or none"
-            />
-          </div>
-        </div>
-      )}
-
-      {supportsStroke && (
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">
-            {el.type === 'text' ? 'Text Color' : 'Border / Stroke Color'}
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="color"
-              className="h-8 w-10 p-0 rounded-md border border-borderLine bg-surface overflow-hidden outline-none cursor-pointer"
-              value={getHexColor(el.stroke)}
-              onChange={(e) => handlePropChange('stroke', e.target.value)}
-            />
-            <input
-              type="text"
-              className="flex-1 h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2.5 outline-none"
-              value={el.stroke || '#6366F1'}
-              onChange={(e) => handlePropChange('stroke', e.target.value)}
-            />
-          </div>
-        </div>
-      )}
-
-      {supportsStrokeWidth && (
-        <div className="flex flex-col gap-1">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold flex justify-between">
-            <span>Border / Stroke Width</span>
-            <span>{el.strokeWidth !== undefined ? el.strokeWidth : 2}px</span>
-          </label>
-          <input
-            type="range"
-            min={(el.type === 'text' || el.type === 'note') ? 0 : 1}
-            max="24"
-            className="w-full h-1.5 bg-borderLine rounded-lg appearance-none cursor-pointer"
-            value={el.strokeWidth !== undefined ? el.strokeWidth : ((el.type === 'note' || el.type === 'text') ? 0 : 2)}
-            onChange={(e) => handlePropChange('strokeWidth', +e.target.value)}
-          />
-        </div>
-      )}
-
-      {/* Closed Path check for Freehand Drawing */}
-      {el.type === 'draw' && (
-        <div className="flex items-center gap-2 border-t border-borderLine/30 pt-1 my-1">
-          <input
-            type="checkbox"
-            id="collab-close-path"
-            className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-borderLine cursor-pointer"
-            checked={!!el.closed}
-            onChange={(e) => {
-              store.pushHistory();
-              const isClosed = e.target.checked;
-              store.updateElement(el.id, {
-                closed: isClosed,
-                fill: isClosed && (!el.fill || el.fill === 'none') ? 'rgba(99,102,241,0.12)' : el.fill,
-              });
-              toast(isClosed ? 'Path Closed & Filled' : 'Path Opened', '#6366F1');
-            }}
-          />
-          <label htmlFor="collab-close-path" className="font-ui text-[10px] text-primaryText tracking-wide cursor-pointer font-bold select-none uppercase">
-            Close Path & Fill
-          </label>
-        </div>
-      )}
-
-      {/* Note Color presets selector */}
-      {el.type === 'note' && (
-        <div className="flex flex-col gap-1 border-t border-borderLine/30 pt-2.5">
-          <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Note Preset Color</label>
-          <select
-            className="h-8 rounded-lg border border-borderLine bg-surface text-primaryText font-ui text-xs px-2 outline-none cursor-pointer"
-            value={el.color || 'sun'}
-            onChange={(e) => handlePropChange('color', e.target.value)}
-          >
-            {Object.keys(notesPreset).map((k) => (
-              <option key={k} value={k}>
-                {k.toUpperCase()} preset
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Layer stack options */}
-      <div className="flex flex-col gap-2 border-t border-borderLine/30 pt-3">
-        <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold">Stacking Layer</label>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            className="h-8 rounded-lg border border-borderLine hover:bg-hover font-ui text-[11px] transition-colors flex items-center justify-center gap-1.5"
-            onClick={handleBringFront}
-            title="Bring to absolute front"
-          >
-            <ArrowUp className="w-3.5 h-3.5 text-indigo-500" /> Bring Front
-          </button>
-          <button
-            className="h-8 rounded-lg border border-borderLine hover:bg-hover font-ui text-[11px] transition-colors flex items-center justify-center gap-1.5"
-            onClick={handleBringForward}
-            title="Bring forward one layer"
-          >
-            <ChevronUp className="w-3.5 h-3.5 text-indigo-500" /> Bring Fwd
-          </button>
-          <button
-            className="h-8 rounded-lg border border-borderLine hover:bg-hover font-ui text-[11px] transition-colors flex items-center justify-center gap-1.5"
-            onClick={handleSendBackward}
-            title="Send backward one layer"
-          >
-            <ChevronDown className="w-3.5 h-3.5 text-indigo-500" /> Send Bwd
-          </button>
-          <button
-            className="h-8 rounded-lg border border-borderLine hover:bg-hover font-ui text-[11px] transition-colors flex items-center justify-center gap-1.5"
-            onClick={handleSendBack}
-            title="Send to absolute back"
-          >
-            <ArrowDown className="w-3.5 h-3.5 text-indigo-500" /> Send Back
-          </button>
-        </div>
-      </div>
-
-      {/* Delete button */}
-      <button
-        className="h-9 w-full mt-2 rounded-lg bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white font-ui text-xs font-bold transition-all flex items-center justify-center gap-2 border border-red-500/20"
-        onClick={() => {
-          store.deleteSelected();
-          toast('Deleted Element', '#F43F5E');
-        }}
-      >
-        <Trash2 className="w-4 h-4" /> Delete Element
-      </button>
-
-      {/* Activity Logs inside Single element */}
-      <div className="border-t border-borderLine/30 mt-2.5 pt-3 select-none">
-        <label className="font-ui text-[10px] text-mutedText tracking-wider uppercase font-bold flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Activity logs
-        </label>
-        <ul className="mt-2.5 flex flex-col gap-2 text-[10px] font-ui text-secondaryText leading-relaxed">
-          <li className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Priya edited note details
-          </li>
-          <li className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> James added vector rectangles
-          </li>
-          <li className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Lena joined this canvas session
-          </li>
-        </ul>
-      </div>
-    </aside>
+    </AnimatePresence>
   );
 };
