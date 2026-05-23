@@ -1,0 +1,467 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300..700&family=Caveat:wght@400;600;700&family=Fira+Code:wght@300;400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Apple Design Tokens — Light ─── */
+:root,
+[data-theme="light"] {
+  --bg-canvas:      #F2F2F7;
+  --bg-surface:     #FFFFFF;
+  --bg-panel:       rgba(255,255,255,0.82);
+  --bg-secondary:   #F2F2F7;
+  --bg-hover:       rgba(0,0,0,0.04);
+  --border:         rgba(60,60,67,0.13);
+  --border-focus:   rgba(0,122,255,0.6);
+  --text-primary:   #000000;
+  --text-secondary: rgba(60,60,67,0.6);
+  --text-muted:     rgba(60,60,67,0.3);
+  --accent:         #007AFF;
+  --accent-hover:   #0066D6;
+  --accent-glow:    rgba(0,122,255,0.12);
+  --red:            #FF3B30;
+  --green:          #34C759;
+  --amber:          #FF9500;
+  --dot-grid:       rgba(60,60,67,0.12);
+
+  --shadow-sm:      0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md:      0 4px 16px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.05);
+  --shadow-lg:      0 8px 32px rgba(0,0,0,0.12), 0 3px 10px rgba(0,0,0,0.07);
+  --shadow-lifted:  0 16px 48px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08);
+
+  --radius-sm:      8px;
+  --radius-md:      12px;
+  --radius-lg:      16px;
+  --radius-xl:      20px;
+  --radius-pill:    100px;
+  --blur-panel:     blur(20px) saturate(180%);
+
+  /* Sticky note palette — lighter, more translucent */
+  --note-yellow:    #FFF59D;
+  --note-pink:      #FCE4EC;
+  --note-blue:      #E3F2FD;
+  --note-green:     #E8F5E9;
+  --note-purple:    #F3E5F5;
+  --note-orange:    #FFF3E0;
+  --note-white:     #FAFAFA;
+
+  /* Typography */
+  --font-display:   -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", sans-serif;
+  --font-ui:        -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+  --font-body:      -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", sans-serif;
+  --font-note:      "Caveat", cursive;
+  --font-mono:      "Fira Code", ui-monospace, monospace;
+
+  --spring-quick:   cubic-bezier(0.16, 1, 0.3, 1);
+  --spring-medium:  cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-slow:    cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Legacy aliases */
+  --accent-light:   #409CFF;
+  --green-online:   #34C759;
+  --rose:           #FF3B30;
+  --rough-fill:     rgba(0,122,255,0.06);
+  --rough-stroke:   #1C1C1E;
+}
+
+/* ─── Apple Design Tokens — Dark ─── */
+[data-theme="dark"] {
+  --bg-canvas:      #000000;
+  --bg-surface:     #1C1C1E;
+  --bg-panel:       rgba(28,28,30,0.85);
+  --bg-secondary:   #2C2C2E;
+  --bg-hover:       rgba(255,255,255,0.06);
+  --border:         rgba(255,255,255,0.12);
+  --border-focus:   rgba(10,132,255,0.7);
+  --text-primary:   #FFFFFF;
+  --text-secondary: rgba(235,235,245,0.6);
+  --text-muted:     rgba(235,235,245,0.3);
+  --accent:         #0A84FF;
+  --accent-hover:   #409CFF;
+  --accent-glow:    rgba(10,132,255,0.2);
+  --red:            #FF453A;
+  --green:          #30D158;
+  --amber:          #FF9F0A;
+  --dot-grid:       rgba(255,255,255,0.06);
+
+  --shadow-sm:      0 1px 4px rgba(0,0,0,0.4);
+  --shadow-md:      0 4px 20px rgba(0,0,0,0.55);
+  --shadow-lg:      0 12px 48px rgba(0,0,0,0.75), 0 0 0 0.5px rgba(255,255,255,0.08);
+  --shadow-lifted:  0 20px 64px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(255,255,255,0.1);
+
+  /* Legacy aliases */
+  --accent-light:   #409CFF;
+  --green-online:   #30D158;
+  --rose:           #FF453A;
+  --rough-fill:     rgba(10,132,255,0.08);
+  --rough-stroke:   #EBEBF5;
+  --bg-hover:       rgba(255,255,255,0.06);
+}
+
+/* ─── Base Reset ─── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  overflow-x: hidden;
+  transition: background-color 0.35s var(--ease-out-expo), color 0.35s var(--ease-out-expo);
+}
+
+/* ─── Apple Glass Panel ─── */
+.glass-panel {
+  background: var(--bg-panel);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  border: 0.5px solid var(--border);
+}
+
+/* Legacy glass aliases */
+.glass {
+  background: var(--bg-panel);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+  border: 0.5px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+.glass-sm {
+  background: var(--bg-panel);
+  backdrop-filter: blur(14px) saturate(160%);
+  -webkit-backdrop-filter: blur(14px) saturate(160%);
+  border: 0.5px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ─── iOS-style Card ─── */
+.card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+}
+
+/* ─── Button System ─── */
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, opacity 0.1s;
+  font-family: var(--font-ui);
+}
+.primary-button:hover  { background: var(--accent-hover); }
+.primary-button:active { transform: scale(0.97); opacity: 0.85; }
+.primary-button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  background: var(--accent-glow);
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: var(--font-ui);
+}
+.secondary-button:hover  { background: var(--accent-glow); }
+.secondary-button:active { transform: scale(0.97); }
+
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 10px;
+  background: transparent;
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: var(--font-ui);
+}
+.ghost-button:hover  { background: var(--bg-hover); }
+.ghost-button:active { transform: scale(0.97); }
+
+.icon-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s, color 0.15s;
+}
+.icon-button:hover  { background: var(--bg-hover); color: var(--text-primary); }
+.icon-button:active { transform: scale(0.95); }
+.icon-button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* ─── Scrollbars ─── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Keyframes ─── */
+@keyframes marching-ants {
+  to { stroke-dashoffset: -20; }
+}
+
+@keyframes fade-slide-up {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.92) translateY(4px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes spring-in {
+  0%   { opacity: 0; transform: scale(0.88); }
+  60%  { opacity: 1; transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+@keyframes note-drop {
+  0%   { transform: scale(0.82) rotate(var(--rot, 0deg)); opacity: 0; }
+  60%  { transform: scale(1.04) rotate(var(--rot, 0deg)); }
+  100% { transform: scale(1) rotate(var(--rot, 0deg)); opacity: 1; }
+}
+
+@keyframes image-drop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+@keyframes shimmer-sweep {
+  0%   { left: -100%; }
+  100% { left: 200%; }
+}
+
+@keyframes undo-pulse {
+  0%, 100% { outline-color: transparent; }
+  50%       { outline: 3px solid rgba(0,122,255,0.5); outline-offset: 2px; }
+}
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes draw-stroke {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes draw-underline {
+  from { stroke-dashoffset: 320; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes ink-underline {
+  from { stroke-dashoffset: 200; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes cursor-path-1 {
+  0%   { transform: translate(0px, 0px); }
+  25%  { transform: translate(160px, -50px); }
+  50%  { transform: translate(100px, 130px); }
+  75%  { transform: translate(-40px, 80px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+@keyframes cursor-path-2 {
+  0%   { transform: translate(0px, 0px); }
+  33%  { transform: translate(-120px, 70px); }
+  66%  { transform: translate(90px, -90px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+@keyframes cursor-path-3 {
+  0%   { transform: translate(0px, 0px); }
+  20%  { transform: translate(80px, -30px); }
+  50%  { transform: translate(-60px, 40px); }
+  80%  { transform: translate(40px, 20px); }
+  100% { transform: translate(0px, 0px); }
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-16px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes toast-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(-10px) scale(0.96); }
+}
+
+@keyframes progress-bar {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* ─── Animation utilities ─── */
+.animate-fade-slide-up { animation: fade-slide-up 0.22s var(--spring-quick) forwards; }
+.animate-fade-in       { animation: fade-in 0.18s ease forwards; }
+.animate-scale-in      { animation: scale-in 0.18s var(--spring-quick) forwards; }
+.animate-spring-in     { animation: spring-in 0.28s var(--spring-medium) forwards; }
+.animate-note-drop     { animation: note-drop 0.28s var(--spring-medium) forwards; }
+.animate-image-drop    { animation: image-drop 0.32s var(--spring-quick); }
+.animate-cursor-1      { animation: cursor-path-1 14s ease-in-out infinite; }
+.animate-cursor-2      { animation: cursor-path-2 11s ease-in-out infinite; }
+.animate-cursor-3      { animation: cursor-path-3 16s ease-in-out infinite; }
+.animate-float         { animation: float-y 4s ease-in-out infinite; }
+.animate-toast-in      { animation: toast-in 0.24s var(--spring-quick) forwards; }
+
+/* ─── Marching ants border ─── */
+.marching-ants {
+  stroke-dasharray: 8 4;
+  stroke-dashoffset: 0;
+  animation: marching-ants 0.7s linear infinite;
+}
+
+/* ─── Rough shape container ─── */
+.rough-shape svg { overflow: visible !important; }
+
+/* ─── Handwriting cursor ─── */
+.cursor-pen {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath fill='%23007AFF' d='M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z'/%3E%3C/svg%3E") 0 24, crosshair;
+}
+
+/* ─── Selection handles ─── */
+.selection-handle {
+  width: 10px;
+  height: 10px;
+  background: white;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  pointer-events: all;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+  transition: transform 0.08s, background 0.08s;
+  z-index: 99999;
+}
+.selection-handle:hover {
+  transform: translate(-50%, -50%) scale(1.3);
+  background: #E0F0FF;
+}
+
+/* ─── Toast progress bar ─── */
+.toast-progress {
+  animation: progress-bar var(--duration, 3s) linear forwards;
+}
+
+/* ─── Shimmer effect ─── */
+.shimmer-overlay {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.shimmer-overlay::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0; width: 50%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shimmer-sweep 0.45s ease forwards;
+}
+
+/* ─── Ink underline for hero ─── */
+.ink-underline path {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: ink-underline 0.6s cubic-bezier(0.25, 1, 0.5, 1) 0.4s forwards;
+}
+
+/* ─── Bento card hover ─── */
+.bento-card {
+  transition: transform 0.22s var(--spring-quick), box-shadow 0.22s var(--spring-quick);
+}
+.bento-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ─── Tool button active state ─── */
+.tool-btn-active {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
+/* ─── Note texture overlay ─── */
+.note-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.018;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  background-size: 120px 120px;
+}
+
+/* ─── Canvas grid ─── */
+#canvasBg { transition: opacity 0.3s; }
+
+/* ─── Font display utility ─── */
+.font-display { font-family: var(--font-display); }
+.font-handwriting { font-family: var(--font-note); }
+
+/* ─── High Performance Drawing Optimizations ─── */
+.is-drawing .glass,
+.is-drawing .glass-panel {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.is-drawing .sticky-note,
+.is-drawing .card,
+.is-drawing .glass {
+  box-shadow: none !important;
+}
+
+.is-drawing .collab-cursor {
+  display: none !important;
+}
+
+.is-drawing #canvasBg {
+  opacity: 0.35 !important;
+}
