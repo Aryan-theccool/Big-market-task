@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBoardsStore, BoardMeta } from '../../store/boardsStore';
 import { useCanvasStore } from '../../store/canvasStore';
 import Link from 'next/link';
+import { TEMPLATE_CARDS, TemplateCard } from '../../components/ui/TemplatePreviews';
 
 /* ─── Palette ──────────────────────────────────────────────────────────── */
 const CARD_PALETTES = [
@@ -249,6 +250,82 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
   );
 }
 
+/* ─── Templates View ────────────────────────────────────────────────────── */
+function TemplatesView({ onUseTemplate }: { onUseTemplate: (tpl: TemplateCard) => void }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'var(--font-ui)', fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+          Template Gallery
+        </h2>
+        <p style={{ fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--text-muted)', margin: '3px 0 0' }}>
+          {TEMPLATE_CARDS.length} templates · Click any to start a new board
+        </p>
+      </div>
+      <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+        {TEMPLATE_CARDS.map((tpl, idx) => (
+          <motion.div
+            key={tpl.id}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: idx * 0.05, type: 'spring', stiffness: 360, damping: 28 }}
+            style={{
+              borderRadius: 20, overflow: 'hidden', position: 'relative', cursor: 'pointer',
+              boxShadow: hovered === tpl.id ? `0 8px 32px ${tpl.glow}, var(--shadow-md)` : 'var(--shadow-sm)',
+              border: hovered === tpl.id ? `1.5px solid ${tpl.tagColor}55` : '1px solid var(--border)',
+              background: 'var(--bg-surface)',
+              transform: hovered === tpl.id ? 'translateY(-4px)' : 'translateY(0)',
+              transition: 'box-shadow 0.2s, border-color 0.2s, transform 0.2s',
+            }}
+            onMouseEnter={() => setHovered(tpl.id)}
+            onMouseLeave={() => setHovered(null)}
+            onClick={() => onUseTemplate(tpl)}
+          >
+            {/* SVG Preview */}
+            <div style={{ width: '100%', height: 158, background: 'var(--bg-secondary)', position: 'relative', overflow: 'hidden' }}>
+              <tpl.Preview />
+              <AnimatePresence>
+                {hovered === tpl.id && (
+                  <motion.div
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.38)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <div style={{ fontFamily: 'var(--font-ui)', fontSize: 13, fontWeight: 700, color: 'white', padding: '8px 22px', background: 'var(--accent)', borderRadius: 100, boxShadow: '0 4px 16px rgba(0,122,255,0.4)' }}>
+                      Use Template →
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Info */}
+            <div style={{ padding: '14px 16px 16px' }}>
+              <div style={{ marginBottom: 8 }}>
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 700, color: tpl.tagColor, background: tpl.tagBg, padding: '2px 8px', borderRadius: 100, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {tpl.tag}
+                </span>
+              </div>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 5px', lineHeight: 1.3 }}>{tpl.title}</p>
+              <p style={{ fontFamily: 'var(--font-ui)', fontSize: 12, color: 'var(--text-muted)', margin: 0, lineHeight: 1.55 }}>{tpl.desc}</p>
+
+              {/* Avatars + element count */}
+              <div style={{ display: 'flex', alignItems: 'center', marginTop: 12 }}>
+                {tpl.avatars.map((color, i) => (
+                  <div key={i} style={{ width: 20, height: 20, borderRadius: '50%', background: color, border: '2px solid var(--bg-surface)', marginLeft: i > 0 ? -7 : 0, zIndex: tpl.avatars.length - i }} />
+                ))}
+                <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)', marginLeft: 10 }}>{tpl.elements.length} elements</span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Page ───────────────────────────────────────────────────────────────── */
 export default function BoardsPage() {
   const router = useRouter();
@@ -258,6 +335,22 @@ export default function BoardsPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeView, setActiveView] = useState<'boards' | 'templates'>('boards');
+
+  const freshId = () => 'el_' + Math.random().toString(36).slice(2, 9);
+
+  const useTemplate = (tpl: TemplateCard) => {
+    const id = createBoard(tpl.title);
+    const elements = tpl.elements.map((el) => ({ ...el, id: freshId() }));
+    localStorage.setItem(`inkspace-board-${id}`, JSON.stringify({
+      boardName: tpl.title,
+      viewport: { x: 260, y: 140, zoom: 1 },
+      elements,
+    }));
+    useBoardsStore.getState().updateMeta(id, { elementCount: elements.length });
+    localStorage.setItem(`inkspace-tpl-${id}`, '1');
+    router.push(`/board/${id}`);
+  };
 
   useEffect(() => {
     hydrate();
@@ -368,15 +461,15 @@ export default function BoardsPage() {
                 {[
                   { icon: (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
-                  ), label: 'My Boards', count: boards.length, active: true },
+                  ), label: 'My Boards', count: boards.length, active: activeView === 'boards', onClick: () => setActiveView('boards') },
                   { icon: (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                  ), label: 'Templates', count: null, active: false },
+                  ), label: 'Templates', count: TEMPLATE_CARDS.length, active: activeView === 'templates', onClick: () => setActiveView('templates') },
                   { icon: (
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-                  ), label: 'Shared with me', count: null, active: false },
+                  ), label: 'Shared with me', count: null, active: false, onClick: () => {} },
                 ].map((item) => (
-                  <button key={item.label}
+                  <button key={item.label} onClick={item.onClick}
                     style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 10, border: 'none', cursor: 'pointer', textAlign: 'left', marginBottom: 2, background: item.active ? 'var(--accent-glow)' : 'transparent', color: item.active ? 'var(--accent)' : 'var(--text-secondary)', transition: 'background 0.15s, color 0.15s' }}
                     onMouseEnter={(e) => { if (!item.active) { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--text-primary)'; }}}
                     onMouseLeave={(e) => { if (!item.active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}}
@@ -425,7 +518,9 @@ export default function BoardsPage() {
 
         {/* Main content */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '24px 28px' }}>
-          {boards.length === 0 ? (
+          {activeView === 'templates' ? (
+            <TemplatesView onUseTemplate={useTemplate} />
+          ) : boards.length === 0 ? (
             <EmptyState onCreate={handleCreate} />
           ) : (
             <>
