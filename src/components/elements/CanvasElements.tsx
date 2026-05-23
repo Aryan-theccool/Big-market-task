@@ -1,138 +1,159 @@
 'use client';
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { CanvasElement, useCanvasStore } from '../../store/canvasStore';
-import { X, GripHorizontal, Eye } from 'lucide-react';
+import { X } from 'lucide-react';
+import { getStroke } from 'perfect-freehand';
 
+// ─── Freehand path helper ─────────────────────────────────────
+function getFreehandPath(points: { x: number; y: number }[], stroke: number, color: string): string {
+  if (!points || points.length < 2) return '';
+  const strokePoints = getStroke(
+    points.map((p) => [p.x, p.y]),
+    { size: stroke * 2, smoothing: 0.5, thinning: 0.5, streamline: 0.5 }
+  );
+  if (!strokePoints.length) return '';
+  const d = strokePoints.reduce<string[]>((acc, [x0, y0], i, arr) => {
+    const [x1, y1] = arr[(i + 1) % arr.length];
+    acc.push(`${x0},${y0}`, `${(x0 + x1) / 2},${(y0 + y1) / 2}`);
+    return acc;
+  }, ['M', `${strokePoints[0][0]},${strokePoints[0][1]}`, 'Q']);
+  d.push('Z');
+  return d.join(' ');
+}
+
+// ─── Note colours ─────────────────────────────────────────────
+const NOTE_COLORS: Record<string, string> = {
+  yellow: '#FEF3B0', pink:   '#FECDD3', blue:   '#BFDBFE',
+  green:  '#BBF7D0', purple: '#DDD6FE', orange: '#FED7AA', white: '#FAFAF9',
+};
+const NOTE_COLOR_KEYS = Object.keys(NOTE_COLORS);
+
+// ─── Props ────────────────────────────────────────────────────
 interface ElementProps {
   element: CanvasElement;
   isSelected: boolean;
   onPointerDown: (e: React.PointerEvent) => void;
 }
 
-const notesPreset: Record<string, string> = {
-  sun: '#FEF3C7',
-  rose: '#FFE4E6',
-  sky: '#E0F2FE',
-  sage: '#DCFCE7',
-  lilac: '#F3E8FF',
-  peach: '#FFEDD5',
-};
-
-// ==================== STICKY NOTE ====================
+// ═════════════════════════════════════════════════════════════
+//  STICKY NOTE
+// ═════════════════════════════════════════════════════════════
 export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
   const updateElement = useCanvasStore((s) => s.updateElement);
   const deleteSelected = useCanvasStore((s) => s.deleteSelected);
+  const activeTool = useCanvasStore((s) => s.activeTool);
   const bodyRef = useRef<HTMLDivElement>(null);
-  
-  const bg = notesPreset[element.color || 'sun'];
-  const rot = element.rot || 0;
-
-  // Track double click to edit
   const [isEditing, setIsEditing] = useState(false);
 
+  const bg = NOTE_COLORS[element.color || 'yellow'] || NOTE_COLORS.yellow;
+  const rot = element.rot || 0;
+
   useEffect(() => {
-    if (bodyRef.current && bodyRef.current.innerText !== element.text) {
+    if (bodyRef.current && bodyRef.current.innerText !== (element.text || '')) {
       bodyRef.current.innerText = element.text || '';
     }
   }, [element.text]);
 
-  const handleBlur = () => {
+  const handleBlur = useCallback(() => {
     setIsEditing(false);
-    if (bodyRef.current) {
-      updateElement(element.id, { text: bodyRef.current.innerText });
-    }
-  };
+    if (bodyRef.current) updateElement(element.id, { text: bodyRef.current.innerText });
+  }, [element.id, updateElement]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-      return;
-    }
+    if (isEditing) { e.stopPropagation(); return; }
     onPointerDown(e);
   };
-
-  const handlePresetColor = (color: string) => {
-    useCanvasStore.getState().pushHistory();
-    updateElement(element.id, { color });
-  };
-
-  const noteBorder = element.strokeWidth && element.strokeWidth > 0 
-    ? `${element.strokeWidth}px solid ${element.stroke || 'rgba(0,0,0,0.12)'}`
-    : '1px solid rgba(0,0,0,0.06)';
 
   return (
     <div
       data-id={element.id}
-      className={`absolute select-none pointer-events-auto rounded-xl flex flex-col transition-shadow duration-200 group ${
-        isSelected ? 'z-50' : ''
-      }`}
+      className="absolute select-none pointer-events-auto group note-texture"
       style={{
-        left: element.x,
-        top: element.y,
-        width: element.w || 220,
-        height: element.h || 220,
+        left: element.x, top: element.y,
+        width: element.w || 200, height: element.h || 200,
         transform: `rotate(${rot}deg)`,
         backgroundColor: bg,
+        borderRadius: 12,
         boxShadow: isSelected
-          ? '0 18px 58px rgba(26,21,35,0.22)'
-          : '0 3px 12px rgba(26,21,35,0.08), 0 1px 3px rgba(26,21,35,0.04)',
-        border: noteBorder,
+          ? '0 14px 40px rgba(28,25,23,0.22), 0 4px 12px rgba(28,25,23,0.12)'
+          : '0 3px 10px rgba(28,25,23,0.12), 0 1px 3px rgba(28,25,23,0.08)',
+        border: isSelected ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(28,25,23,0.05)',
         zIndex: element.z || 0,
+        transition: 'box-shadow 0.15s, transform 0.15s',
       }}
       onPointerDown={handlePointerDown}
     >
-      {/* Top Header rail - draggable */}
-      <div 
-        className={`h-7 flex items-center gap-1.5 px-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 border-b border-dashed border-black/5 cursor-grab`}
-      >
-        <GripHorizontal className="w-3.5 h-3.5 text-black/40" />
-        <span className="font-ui text-[10px] text-black/45 tracking-wide">NOTE</span>
+      {/* Drag handle row */}
+      <div className="h-7 flex items-center gap-1.5 px-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-150 border-b border-dashed border-black/8 cursor-grab active:cursor-grabbing">
+        <svg viewBox="0 0 16 6" className="w-4 h-3 text-black/30" fill="currentColor">
+          <rect width="16" height="1.5" rx="1" /><rect y="4.5" width="16" height="1.5" rx="1" />
+        </svg>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10 }} className="text-black/35 tracking-widest uppercase">Note</span>
         <button
-          className="ml-auto w-4.5 h-4.5 rounded flex items-center justify-center text-black/50 hover:bg-black/5"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteSelected();
-          }}
-          title="Delete Note"
+          className="ml-auto w-4.5 h-4.5 rounded-md flex items-center justify-center text-black/40 hover:bg-black/10 transition-colors"
+          onClick={(e) => { e.stopPropagation(); deleteSelected(); }}
         >
           <X className="w-3 h-3" />
         </button>
       </div>
 
-      {/* Note Body */}
+      {/* Content */}
       <div
         ref={bodyRef}
-        contentEditable={useCanvasStore.getState().activeTool === 'select'}
+        contentEditable={activeTool === 'select'}
         suppressContentEditableWarning
-        className={`flex-1 p-3.5 pt-1.5 font-note text-2xl leading-tight text-primaryText focus:outline-none overflow-hidden select-text`}
-        style={{ fontFamily: 'var(--font-note)' }}
         onFocus={() => setIsEditing(true)}
         onBlur={handleBlur}
-      />
-
-      {/* Folded Corner CSS Effect */}
-      <div
-        className="absolute bottom-0 right-0 w-7 h-7 pointer-events-none"
+        className="flex-1 px-3 py-2 focus:outline-none overflow-hidden select-text break-words"
         style={{
-          background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.12) 50%)',
-          borderBottomRightRadius: '11px',
+          fontFamily: 'Caveat, cursive',
+          fontSize: element.fontSize || 18,
+          lineHeight: 1.4,
+          color: 'rgba(28,25,23,0.85)',
+          minHeight: 'calc(100% - 28px)',
+          cursor: isEditing ? 'text' : 'inherit',
         }}
       />
 
-      {/* Floating note color picker preset on selection */}
+      {/* Folded corner */}
+      <div
+        className="absolute bottom-0 right-0 w-6 h-6 pointer-events-none"
+        style={{
+          background: 'linear-gradient(135deg, transparent 50%, rgba(0,0,0,0.08) 50%)',
+          borderBottomRightRadius: 12,
+        }}
+      />
+
+      {/* Colour picker — floating pill above note */}
       {isSelected && !isEditing && (
-        <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex items-center gap-1.5 p-1.5 rounded-full glass z-50 animate-fade-slide-up">
-          {Object.keys(notesPreset).map((colorKey) => (
+        <div
+          className="absolute left-1/2 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full z-[9999]"
+          style={{
+            bottom: 'calc(100% + 10px)',
+            transform: 'translateX(-50%)',
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow-lg)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            animation: 'picker-spring 150ms cubic-bezier(0.34,1.56,0.64,1) forwards',
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          {NOTE_COLOR_KEYS.map((key) => (
             <button
-              key={colorKey}
-              className={`w-5.5 h-5.5 rounded-full border border-white/60 shadow-sm transition-transform duration-100 hover:scale-115 ${
-                element.color === colorKey ? 'ring-2 ring-indigo-500 scale-105' : ''
-              }`}
-              style={{ backgroundColor: notesPreset[colorKey] }}
+              key={key}
+              className="w-5 h-5 rounded-full border border-black/10 transition-transform duration-100 hover:scale-125 active:scale-95"
+              style={{
+                backgroundColor: NOTE_COLORS[key],
+                boxShadow: element.color === key ? '0 0 0 2px white, 0 0 0 4px #7C3AED' : undefined,
+                transform: element.color === key ? 'scale(1.15)' : undefined,
+              }}
               onClick={(e) => {
                 e.stopPropagation();
-                handlePresetColor(colorKey);
+                useCanvasStore.getState().pushHistory();
+                updateElement(element.id, { color: key });
               }}
             />
           ))}
@@ -142,328 +163,407 @@ export const StickyNote: React.FC<ElementProps> = ({ element, isSelected, onPoin
   );
 };
 
-// ==================== TEXT ELEMENT ====================
-export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
+// ═════════════════════════════════════════════════════════════
+//  HANDWRITING TEXT
+// ═════════════════════════════════════════════════════════════
+export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
   const updateElement = useCanvasStore((s) => s.updateElement);
+  const activeTool = useCanvasStore((s) => s.activeTool);
   const textRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Sync DOM text only when the stored value actually differs (avoids caret reset)
   useEffect(() => {
-    if (textRef.current && textRef.current.innerText !== element.text) {
+    if (textRef.current && textRef.current.innerText !== (element.text || '')) {
       textRef.current.innerText = element.text || '';
     }
   }, [element.text]);
 
-  const handleBlur = () => {
+  // Expand container to fit the current text content.
+  // Strategy: free the container width so the pre-formatted inner div
+  // determines its own natural width, then fix it at that value.
+  const syncWidth = useCallback(() => {
+    const text = textRef.current;
+    const wrap = containerRef.current;
+    if (!text || !wrap) return;
+
+    // Release any fixed width so layout uses content width
+    wrap.style.width = 'auto';
+    // scrollWidth gives the full one-line text width even when the
+    // container is narrower (no wrapping because white-space: pre)
+    const contentW = text.scrollWidth;
+    // Pin the container: content width + horizontal padding (8px × 2 = 16px)
+    wrap.style.width = Math.max(80, contentW + 16) + 'px';
+  }, []);
+
+  const handleFocus = useCallback(() => {
+    setIsEditing(true);
+    // Let the browser place the caret, then sync dimensions
+    requestAnimationFrame(syncWidth);
+  }, [syncWidth]);
+
+  const handleBlur = useCallback(() => {
     setIsEditing(false);
-    if (textRef.current) {
-      updateElement(element.id, { text: textRef.current.innerText });
+    if (textRef.current && containerRef.current) {
+      // Persist actual rendered size so selection handles are accurate
+      const w = containerRef.current.offsetWidth;
+      const h = containerRef.current.offsetHeight;
+      updateElement(element.id, { text: textRef.current.innerText, w, h });
+      // Clear imperative style so the JSX width (element.w) takes over
+      containerRef.current.style.width = '';
     }
-  };
+  }, [element.id, updateElement]);
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (isEditing) {
-      e.stopPropagation();
-      return;
-    }
-    onPointerDown(e);
-  };
-
-  const textColor = element.stroke || 'var(--text-primary)';
-  const borderStyle = element.strokeWidth && element.strokeWidth > 0
-    ? `${element.strokeWidth}px solid ${textColor}`
-    : isSelected ? '1px dashed var(--accent)' : '1px solid transparent';
-
-  const fillBg = element.fill && element.fill !== 'none' && element.fill !== 'transparent'
-    ? element.fill
-    : 'transparent';
+  const rot = element.rot || 0;
+  const fontSize = element.fontSize || 24;
+  const color = element.stroke || 'var(--text-primary)';
 
   return (
     <div
+      ref={containerRef}
       data-id={element.id}
-      className={`absolute select-none pointer-events-auto rounded-lg transition-shadow duration-150 ${
-        isSelected ? 'z-50' : ''
-      }`}
+      className="absolute select-none pointer-events-auto"
       style={{
         left: element.x,
         top: element.y,
-        width: element.w || 'auto',
-        minWidth: 100,
-        minHeight: 40,
-        transform: `rotate(${element.rot || 0}deg)`,
-        border: borderStyle,
-        backgroundColor: fillBg,
-        padding: '6px 12px',
-        color: textColor,
-        fontFamily: 'var(--font-display)',
-        boxShadow: isSelected ? '0 10px 30px rgba(99,102,241,0.08)' : 'none',
+        transform: `rotate(${rot}deg)`,
+        opacity: element.opacity !== undefined ? element.opacity : 1,
         zIndex: element.z || 0,
+        border: isEditing
+          ? '1px dashed rgba(99,102,241,0.5)'
+          : isSelected
+          ? '1px dashed rgba(99,102,241,0.3)'
+          : '1px solid transparent',
+        borderRadius: 6,
+        padding: '4px 8px',
+        boxSizing: 'border-box',
+        cursor: isEditing ? 'text' : 'move',
+        // Saved width used for display; auto-sizes during editing via syncWidth()
+        width: element.w ? element.w : 'max-content',
+        minWidth: 80,
       }}
-      onPointerDown={handlePointerDown}
+      onPointerDown={(e) => { if (isEditing) { e.stopPropagation(); return; } onPointerDown(e); }}
     >
       <div
         ref={textRef}
-        contentEditable={useCanvasStore.getState().activeTool === 'select'}
+        contentEditable={activeTool === 'select'}
         suppressContentEditableWarning
-        className="text-[30px] font-display leading-tight outline-none select-text break-words"
-        onFocus={() => setIsEditing(true)}
+        onFocus={handleFocus}
         onBlur={handleBlur}
+        onInput={syncWidth}
+        className="outline-none select-text"
+        style={{
+          fontFamily: 'Caveat, cursive',
+          fontSize,
+          lineHeight: 1.3,
+          color,
+          textAlign: element.align || 'left',
+          // pre: no auto-wrap; explicit Enter creates newlines.
+          // This is what stops the 4-char wrap — the container is no longer
+          // the wrapping constraint; text flows right until syncWidth pins it.
+          whiteSpace: 'pre',
+          display: 'block',
+          width: '100%',
+          cursor: isEditing ? 'text' : 'inherit',
+        }}
       />
     </div>
   );
 };
 
-// ==================== SVG SHAPE / LINES ====================
-export const SvgShape: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
-  const getBounds = () => {
-    if (element.type === 'line' || element.type === 'arrow') {
-      const minX = Math.min(element.x, element.x2 || element.x);
-      const minY = Math.min(element.y, element.y2 || element.y);
-      const w = Math.abs((element.x2 || element.x) - element.x) || 1;
-      const h = Math.abs((element.y2 || element.y) - element.y) || 1;
-      return { x: minX, y: minY, w, h };
+// ═════════════════════════════════════════════════════════════
+//  TEXT ELEMENT
+// ═════════════════════════════════════════════════════════════
+export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
+  const updateElement = useCanvasStore((s) => s.updateElement);
+  const activeTool = useCanvasStore((s) => s.activeTool);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (textRef.current && textRef.current.innerText !== (element.text || '')) {
+      textRef.current.innerText = element.text || '';
     }
-    if (element.type === 'draw') {
-      if (element.points && element.points.length > 0) {
-        const xs = element.points.map((p) => p.x);
-        const ys = element.points.map((p) => p.y);
-        const minX = Math.min(...xs);
-        const minY = Math.min(...ys);
-        const maxX = Math.max(...xs);
-        const maxY = Math.max(...ys);
-        return {
-          x: minX,
-          y: minY,
-          w: Math.max(1, maxX - minX),
-          h: Math.max(1, maxY - minY),
-        };
-      }
-      return { x: element.x, y: element.y, w: 1, h: 1 };
-    }
-    return {
-      x: element.x,
-      y: element.y,
-      w: element.w || 10,
-      h: element.h || 10,
+  }, [element.text]);
+
+  const handleBlur = useCallback(() => {
+    setIsEditing(false);
+    if (textRef.current) updateElement(element.id, { text: textRef.current.innerText });
+  }, [element.id, updateElement]);
+
+  const color = element.stroke || 'var(--text-primary)';
+
+  return (
+    <div
+      data-id={element.id}
+      className="absolute select-none pointer-events-auto"
+      style={{
+        left: element.x, top: element.y,
+        width: element.w || 'auto',
+        minWidth: 100, minHeight: 40,
+        transform: `rotate(${element.rot || 0}deg)`,
+        padding: '6px 10px',
+        borderRadius: 8,
+        border: isEditing ? '1px dashed rgba(99,102,241,0.5)' : isSelected ? '1px dashed rgba(99,102,241,0.35)' : '1px solid transparent',
+        backgroundColor: element.fill && element.fill !== 'transparent' ? element.fill : 'transparent',
+        zIndex: element.z || 0,
+        opacity: element.opacity !== undefined ? element.opacity : 1,
+      }}
+      onPointerDown={(e) => { if (isEditing) { e.stopPropagation(); return; } onPointerDown(e); }}
+    >
+      <div
+        ref={textRef}
+        contentEditable={activeTool === 'select'}
+        suppressContentEditableWarning
+        onFocus={() => setIsEditing(true)}
+        onBlur={handleBlur}
+        className="outline-none select-text break-words leading-tight"
+        style={{
+          fontFamily: 'var(--font-display)',
+          fontSize: element.fontSize || 28,
+          color,
+          textAlign: element.align || 'left',
+        }}
+      />
+    </div>
+  );
+};
+
+// ═════════════════════════════════════════════════════════════
+//  ROUGH SHAPE (rect, circle, line, arrow, frame)
+// ═════════════════════════════════════════════════════════════
+interface RoughShapeProps extends ElementProps {}
+
+export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onPointerDown }) => {
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  const strokeColor = element.stroke || 'var(--rough-stroke)';
+  const fillColor = element.fill || (element.type === 'frame' ? 'rgba(99,102,241,0.03)' : 'rgba(99,102,241,0.06)');
+  const strokeW = element.strokeWidth ?? 2;
+  const roughness = element.roughness ?? 1.2;
+
+  // Compute bounding box
+  const isLine = element.type === 'line' || element.type === 'arrow';
+  const isDraw = element.type === 'draw';
+
+  let bx: number, by: number, bw: number, bh: number;
+  let lx1 = 0, ly1 = 0, lx2 = 0, ly2 = 0;
+
+  if (isLine) {
+    const minX = Math.min(element.x, element.x2 ?? element.x);
+    const minY = Math.min(element.y, element.y2 ?? element.y);
+    bx = minX; by = minY;
+    bw = Math.max(1, Math.abs((element.x2 ?? element.x) - element.x));
+    bh = Math.max(1, Math.abs((element.y2 ?? element.y) - element.y));
+    lx1 = element.x - minX; ly1 = element.y - minY;
+    lx2 = (element.x2 ?? element.x) - minX; ly2 = (element.y2 ?? element.y) - minY;
+  } else if (isDraw) {
+    const pts = element.points || [];
+    if (pts.length === 0) return null;
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    bx = Math.min(...xs); by = Math.min(...ys);
+    bw = Math.max(1, Math.max(...xs) - bx);
+    bh = Math.max(1, Math.max(...ys) - by);
+  } else {
+    bx = element.x; by = element.y;
+    bw = Math.max(10, element.w || 100);
+    bh = Math.max(10, element.h || 60);
+  }
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    let rough: any;
+    try {
+      rough = require('roughjs');
+      // handle both default export shapes
+      if (rough.default) rough = rough.default;
+    } catch { return; }
+
+    // Clear previous children
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const rc = rough.svg(svg);
+    const opts = {
+      roughness,
+      bowing: 0.8,
+      stroke: strokeColor,
+      strokeWidth: strokeW,
+      fill: fillColor,
+      fillStyle: 'hachure' as const,
+      fillWeight: 0.8,
+      hachureAngle: -41,
+      hachureGap: 5,
     };
-  };
 
-  const b = getBounds();
-  const strokeColor = element.stroke || '#6366F1';
-  const fillColor = element.fill || 'rgba(99, 102, 241, 0.08)';
-  const strokeW = element.strokeWidth !== undefined ? element.strokeWidth : 2;
+    const pad = 6;
 
-  // Coordinates translation for elements relative to Svg coordinate system
-  const localX = (xVal: number) => xVal - b.x;
-  const localY = (yVal: number) => yVal - b.y;
-
-  const renderShapeBody = () => {
+    let node: SVGElement | null = null;
     switch (element.type) {
       case 'rect':
-        return (
-          <rect
-            x={strokeW / 2}
-            y={strokeW / 2}
-            width={Math.max(1, b.w - strokeW)}
-            height={Math.max(1, b.h - strokeW)}
-            rx={element.radius || 8}
-            fill={fillColor}
-            stroke={strokeColor}
-            strokeWidth={strokeW}
-          />
-        );
+        node = rc.rectangle(pad, pad, bw - pad * 2, bh - pad * 2, { ...opts, cornerRadius: element.radius || 0 });
+        break;
       case 'circle':
-        return (
-          <ellipse
-            cx={b.w / 2}
-            cy={b.h / 2}
-            rx={Math.max(1, b.w / 2 - strokeW / 2)}
-            ry={Math.max(1, b.h / 2 - strokeW / 2)}
-            fill={fillColor}
-            stroke={strokeColor}
-            strokeWidth={strokeW}
-          />
-        );
+        node = rc.ellipse(bw / 2, bh / 2, bw - pad * 2, bh - pad * 2, { ...opts });
+        break;
       case 'frame':
-        return (
-          <g>
-            <rect
-              x={strokeW / 2}
-              y={strokeW / 2}
-              width={Math.max(1, b.w - strokeW)}
-              height={Math.max(1, b.h - strokeW)}
-              rx={16}
-              fill={element.fill || 'rgba(99,102,241,0.03)'}
-              stroke={strokeColor}
-              strokeWidth={strokeW}
-              strokeDasharray="8 6"
-            />
-            {/* Frame Label */}
-            <foreignObject x={8} y={-24} width={180} height={32} className="overflow-visible select-none">
-              <span className="inline-block px-3 py-1 font-ui text-[11px] font-extrabold text-accent bg-panel border border-borderLine rounded-full shadow-sm">
-                ⬡ {element.text || 'Frame Section'}
-              </span>
-            </foreignObject>
-          </g>
-        );
+        node = rc.rectangle(pad, pad, bw - pad * 2, bh - pad * 2, {
+          ...opts,
+          roughness: 0.6,
+          fillStyle: 'solid' as const,
+          fill: fillColor.replace(/[\d.]+\)$/, '0.04)'),
+          strokeLineDash: [6, 4],
+        });
+        break;
       case 'line':
-        return (
-          <line
-            x1={localX(element.x)}
-            y1={localY(element.y)}
-            x2={localX(element.x2 || element.x)}
-            y2={localY(element.y2 || element.y)}
-            stroke={strokeColor}
-            strokeWidth={strokeW}
-            strokeLinecap="round"
-          />
-        );
-      case 'arrow':
-        const markerId = `arrow-marker-${element.id}`;
-        return (
-          <g>
-            <defs>
-              <marker
-                id={markerId}
-                viewBox="0 0 10 10"
-                refX="8"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto"
-              >
-                <path d="M0 0 L10 5 L0 10z" fill={strokeColor} />
-              </marker>
-            </defs>
-            <line
-              x1={localX(element.x)}
-              y1={localY(element.y)}
-              x2={localX(element.x2 || element.x)}
-              y2={localY(element.y2 || element.y)}
-              stroke={strokeColor}
-              strokeWidth={strokeW}
-              strokeLinecap="round"
-              markerEnd={`url(#${markerId})`}
-            />
-          </g>
-        );
-      case 'draw':
-        const pointsStr = (element.points || [])
-          .map((p) => `${localX(p.x)},${localY(p.y)}`)
-          .join(' ');
-        
-        if (element.closed) {
-          return (
-            <polygon
-              points={pointsStr}
-              fill={fillColor !== 'none' ? fillColor : 'rgba(99, 102, 241, 0.1)'}
-              stroke={strokeColor}
-              strokeWidth={strokeW}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          );
-        }
-        return (
-          <polyline
-            points={pointsStr}
-            fill="none"
-            stroke={strokeColor}
-            strokeWidth={strokeW}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        );
+        node = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
+        break;
+      case 'arrow': {
+        const lineNode = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
+        svg.appendChild(lineNode);
+        // Manual arrowhead
+        const angle = Math.atan2(ly2 - ly1, lx2 - lx1);
+        const arrowLen = Math.min(18, Math.hypot(lx2 - lx1, ly2 - ly1) * 0.4);
+        const a1 = angle + 2.8, a2 = angle - 2.8;
+        const ah1x = lx2 + Math.cos(a1) * arrowLen;
+        const ah1y = ly2 + Math.sin(a1) * arrowLen;
+        const ah2x = lx2 + Math.cos(a2) * arrowLen;
+        const ah2y = ly2 + Math.sin(a2) * arrowLen;
+        const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        arrowHead.setAttribute('d', `M${ah1x},${ah1y} L${lx2},${ly2} L${ah2x},${ah2y}`);
+        arrowHead.setAttribute('stroke', strokeColor);
+        arrowHead.setAttribute('stroke-width', String(strokeW));
+        arrowHead.setAttribute('stroke-linecap', 'round');
+        arrowHead.setAttribute('fill', 'none');
+        svg.appendChild(arrowHead);
+        return;
+      }
       default:
-        return null;
+        return;
     }
-  };
+    if (node) svg.appendChild(node);
+  }, [element.type, bw, bh, lx1, ly1, lx2, ly2, strokeColor, fillColor, strokeW, roughness, element.radius]);
 
-  // Add rotation style for shape boxes (excluding straight vectors like line/arrow)
-  const isLineType = ['line', 'arrow', 'draw'].includes(element.type);
-  const rot = element.rot || 0;
+  // Freehand draw uses perfect-freehand
+  if (isDraw) {
+    const d = getFreehandPath(element.points || [], strokeW, strokeColor);
+    const rot = element.rot || 0;
+    return (
+      <svg
+        data-id={element.id}
+        className="absolute pointer-events-auto overflow-visible"
+        style={{ left: bx, top: by, width: bw, height: bh, overflow: 'visible', zIndex: element.z || 0, transform: `rotate(${rot}deg)`, transformOrigin: 'center' }}
+        onPointerDown={onPointerDown}
+      >
+        {d && (
+          <path
+            d={d.split(' ').map((v, i) => {
+              if (isNaN(Number(v)) || v.includes(',')) {
+                const [x, y] = v.split(',');
+                return `${parseFloat(x) - bx},${parseFloat(y) - by}`;
+              }
+              return v;
+            }).join(' ')}
+            fill={strokeColor}
+            stroke="none"
+            opacity={element.opacity ?? 1}
+          />
+        )}
+      </svg>
+    );
+  }
+
+  const rot = !isLine ? (element.rot || 0) : 0;
+  const svgW = bw + 12, svgH = bh + 12;
 
   return (
     <svg
+      ref={svgRef}
       data-id={element.id}
-      className={`absolute select-none pointer-events-auto overflow-visible ${
-        isSelected ? 'z-50' : ''
-      }`}
+      className="absolute pointer-events-auto overflow-visible rough-shape"
       style={{
-        left: b.x,
-        top: b.y,
-        width: Math.max(1, b.w),
-        height: Math.max(1, b.h),
-        transform: isLineType ? 'none' : `rotate(${rot}deg)`,
-        transformOrigin: 'center center',
-        filter: isSelected ? 'drop-shadow(0 4px 12px rgba(99,102,241,0.12))' : 'none',
+        left: bx - 6, top: by - 6,
+        width: svgW, height: svgH,
+        overflow: 'visible',
         zIndex: element.z || 0,
+        transform: rot ? `rotate(${rot}deg)` : undefined,
+        transformOrigin: 'center',
+        opacity: element.opacity ?? 1,
+        filter: isSelected ? 'drop-shadow(0 2px 8px rgba(99,102,241,0.18))' : undefined,
       }}
       onPointerDown={onPointerDown}
     >
-      {renderShapeBody()}
+      {element.type === 'frame' && (
+        <foreignObject x={6} y={-28} width={240} height={28} className="overflow-visible">
+          <div
+            style={{
+              display: 'inline-block',
+              fontFamily: "'Caveat', cursive", fontSize: 16, fontWeight: 600,
+              color: element.stroke || 'var(--accent)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {element.text || 'Frame'}
+          </div>
+        </foreignObject>
+      )}
     </svg>
   );
 };
 
-// ==================== IMAGE ELEMENT ====================
+// ═════════════════════════════════════════════════════════════
+//  IMAGE ELEMENT
+// ═════════════════════════════════════════════════════════════
 export const ImageElement: React.FC<ElementProps> = ({ element, isSelected, onPointerDown }) => {
   const deleteSelected = useCanvasStore((s) => s.deleteSelected);
   const rot = element.rot || 0;
 
-  const imageBorder = element.strokeWidth && element.strokeWidth > 0 
-    ? `${element.strokeWidth}px solid ${element.stroke || '#6366F1'}`
-    : isSelected ? '1px dashed var(--accent)' : '1px solid transparent';
-
-  const borderRadius = element.radius !== undefined ? `${element.radius}px` : '12px';
-
   return (
     <div
       data-id={element.id}
-      className={`absolute select-none pointer-events-auto flex flex-col group transition-shadow duration-200 ${
-        isSelected ? 'z-50' : ''
-      }`}
+      className="absolute select-none pointer-events-auto group"
       style={{
-        left: element.x,
-        top: element.y,
-        width: element.w || 200,
-        height: element.h || 150,
+        left: element.x, top: element.y,
+        width: element.w || 300, height: element.h || 200,
         transform: `rotate(${rot}deg)`,
-        transformOrigin: 'center center',
+        transformOrigin: 'center',
+        borderRadius: 8,
         boxShadow: isSelected
-          ? '0 18px 58px rgba(26,21,35,0.22)'
-          : '0 3px 12px rgba(26,21,35,0.08), 0 1px 3px rgba(26,21,35,0.04)',
-        border: imageBorder,
-        borderRadius: borderRadius,
-        overflow: 'visible',
+          ? '0 14px 40px rgba(28,25,23,0.22), 0 0 0 2px rgba(99,102,241,0.4)'
+          : '0 4px 16px rgba(28,25,23,0.12), 0 1px 4px rgba(28,25,23,0.06)',
+        border: '1px solid rgba(255,255,255,0.12)',
+        overflow: 'hidden',
         zIndex: element.z || 0,
+        opacity: element.opacity ?? 1,
+        transition: 'box-shadow 0.15s',
       }}
       onPointerDown={onPointerDown}
     >
-      {/* Absolute image overlay delete button on hover */}
       <button
-        className="absolute -top-3.5 -right-3.5 w-7 h-7 rounded-full bg-panel border border-borderLine shadow-md flex items-center justify-center text-primaryText opacity-0 group-hover:opacity-100 transition-all duration-150 z-[100] cursor-pointer hover:bg-black/5 hover:scale-110 active:scale-95"
-        onClick={(e) => {
-          e.stopPropagation();
-          deleteSelected();
-        }}
-        title="Delete Image"
+        className="absolute -top-3 -right-3 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-150 z-50 hover:scale-110 active:scale-95"
+        onClick={(e) => { e.stopPropagation(); deleteSelected(); }}
+        style={{ border: '1px solid rgba(28,25,23,0.12)' }}
       >
-        <X className="w-4 h-4 text-rose-500" />
+        <X className="w-3.5 h-3.5 text-rose-500" />
       </button>
 
-      {/* Actual base64 Image */}
       <img
         src={element.src || ''}
-        alt="Canvas item"
+        alt="Canvas element"
         className="w-full h-full object-contain pointer-events-none select-none"
-        style={{ borderRadius: `calc(${borderRadius} - 1px)` }}
+        style={{
+          transform: `scaleX(${element.flipH ? -1 : 1}) scaleY(${element.flipV ? -1 : 1})`,
+        }}
       />
     </div>
   );
 };
 
-// ==================== SELECTION BOX HANDLES ====================
+// ═════════════════════════════════════════════════════════════
+//  SELECTION BOX WITH HANDLES
+// ═════════════════════════════════════════════════════════════
 interface SelectionBoxProps {
   elements: CanvasElement[];
   viewport: { x: number; y: number; zoom: number };
@@ -471,119 +571,105 @@ interface SelectionBoxProps {
   onRotateStart: (e: React.PointerEvent) => void;
 }
 
-export const SelectionBox: React.FC<SelectionBoxProps> = ({
-  elements,
-  onResizeStart,
-  onRotateStart,
-}) => {
+export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeStart, onRotateStart }) => {
   if (!elements.length) return null;
 
-  const boundsList = elements.map((el) => {
+  const getBounds = (el: CanvasElement) => {
     if (el.type === 'line' || el.type === 'arrow') {
-      const minX = Math.min(el.x, el.x2 || el.x);
-      const minY = Math.min(el.y, el.y2 || el.y);
-      const w = Math.abs((el.x2 || el.x) - el.x) || 1;
-      const h = Math.abs((el.y2 || el.y) - el.y) || 1;
-      return { x: minX, y: minY, w, h };
+      const x = Math.min(el.x, el.x2 ?? el.x), y = Math.min(el.y, el.y2 ?? el.y);
+      return { x, y, w: Math.max(1, Math.abs((el.x2 ?? el.x) - el.x)), h: Math.max(1, Math.abs((el.y2 ?? el.y) - el.y)) };
     }
-    if (el.type === 'draw') {
-      if (el.points && el.points.length > 0) {
-        const xs = el.points.map((p) => p.x);
-        const ys = el.points.map((p) => p.y);
-        const minX = Math.min(...xs);
-        const minY = Math.min(...ys);
-        const maxX = Math.max(...xs);
-        const maxY = Math.max(...ys);
-        return {
-          x: minX,
-          y: minY,
-          w: Math.max(1, maxX - minX),
-          h: Math.max(1, maxY - minY),
-        };
-      }
-      return { x: el.x, y: el.y, w: 1, h: 1 };
+    if (el.type === 'draw' && el.points?.length) {
+      const xs = el.points.map((p) => p.x), ys = el.points.map((p) => p.y);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(1, Math.max(...xs) - Math.min(...xs)), h: Math.max(1, Math.max(...ys) - Math.min(...ys)) };
     }
     return { x: el.x, y: el.y, w: el.w || 100, h: el.h || 60 };
-  });
+  };
 
-  const minX = Math.min(...boundsList.map((b) => b.x));
-  const minY = Math.min(...boundsList.map((b) => b.y));
-  const maxX = Math.max(...boundsList.map((b) => b.x + b.w));
-  const maxY = Math.max(...boundsList.map((b) => b.y + b.h));
+  const bounds = elements.map(getBounds);
+  const minX = Math.min(...bounds.map((b) => b.x));
+  const minY = Math.min(...bounds.map((b) => b.y));
+  const maxX = Math.max(...bounds.map((b) => b.x + b.w));
+  const maxY = Math.max(...bounds.map((b) => b.y + b.h));
+  const w = maxX - minX, h = maxY - minY;
 
-  const w = maxX - minX;
-  const h = maxY - minY;
-
-  // Line drawing vectors do not get rotate/resize handles directly
   const single = elements[0];
   const isLineType = elements.length === 1 && ['line', 'arrow', 'draw'].includes(single.type);
   const rot = elements.length === 1 && !isLineType ? (single.rot || 0) : 0;
 
-  // Handle styles
-  const handleClass =
-    'absolute w-3.5 h-3.5 bg-white border-2 border-indigo-500 rounded-full shadow-md z-50 cursor-pointer pointer-events-auto transform -translate-x-1/2 -translate-y-1/2 hover:scale-120 hover:bg-indigo-50 transition-transform duration-75';
+  const handles = ['nw','n','ne','e','se','s','sw','w'];
+  const handlePos: Record<string, { left: string; top: string; cursor: string }> = {
+    nw: { left: '0',    top: '0',    cursor: 'nwse-resize' },
+    n:  { left: '50%',  top: '0',    cursor: 'ns-resize'   },
+    ne: { left: '100%', top: '0',    cursor: 'nesw-resize' },
+    e:  { left: '100%', top: '50%',  cursor: 'ew-resize'   },
+    se: { left: '100%', top: '100%', cursor: 'nwse-resize' },
+    s:  { left: '50%',  top: '100%', cursor: 'ns-resize'   },
+    sw: { left: '0',    top: '100%', cursor: 'nesw-resize' },
+    w:  { left: '0',    top: '50%',  cursor: 'ew-resize'   },
+  };
 
   return (
     <div
-      className="absolute border border-indigo-500/70 border-dashed pointer-events-none select-none z-40 animate-marching-ants"
+      className="absolute pointer-events-none select-none"
       style={{
-        left: minX,
-        top: minY,
-        width: w,
-        height: h,
-        outline: '1px solid rgba(99,102,241,0.2)',
-        transform: `rotate(${rot}deg)`,
-        transformOrigin: 'center center',
-        zIndex: 999999,
+        left: minX, top: minY, width: w, height: h,
+        transform: rot ? `rotate(${rot}deg)` : undefined,
+        transformOrigin: 'center',
+        zIndex: 999990,
       }}
     >
-      {/* 8 Resize grips (hidden if it is a line vector draw) */}
+      {/* Dashed border */}
+      <svg
+        className="absolute inset-0 overflow-visible pointer-events-none"
+        style={{ width: '100%', height: '100%' }}
+      >
+        <rect
+          x="0" y="0" width="100%" height="100%"
+          fill="none"
+          stroke="rgba(99,102,241,0.7)"
+          strokeWidth="1.5"
+          strokeDasharray="7 4"
+          className="marching-ants"
+          rx="2"
+        />
+      </svg>
+
       {!isLineType && (
         <>
+          {handles.map((h) => (
+            <div
+              key={h}
+              className="selection-handle"
+              style={{ left: handlePos[h].left, top: handlePos[h].top, cursor: handlePos[h].cursor }}
+              onPointerDown={(e) => onResizeStart(h, e)}
+            />
+          ))}
+
+          {/* Rotation line */}
           <div
-            className={`${handleClass} left-0 top-0 cursor-nwse-resize`}
-            onPointerDown={(e) => onResizeStart('nw', e)}
+            className="absolute left-1/2 pointer-events-none"
+            style={{ top: -32, width: 1, height: 28, background: 'rgba(99,102,241,0.5)', transform: 'translateX(-50%)' }}
           />
+
+          {/* Rotation handle */}
           <div
-            className={`${handleClass} left-1/2 top-0 cursor-ns-resize`}
-            onPointerDown={(e) => onResizeStart('n', e)}
-          />
-          <div
-            className={`${handleClass} left-full top-0 cursor-nesw-resize`}
-            onPointerDown={(e) => onResizeStart('ne', e)}
-          />
-          <div
-            className={`${handleClass} left-full top-1/2 cursor-ew-resize`}
-            onPointerDown={(e) => onResizeStart('e', e)}
-          />
-          <div
-            className={`${handleClass} left-full top-full cursor-nwse-resize`}
-            onPointerDown={(e) => onResizeStart('se', e)}
-          />
-          <div
-            className={`${handleClass} left-1/2 top-full cursor-ns-resize`}
-            onPointerDown={(e) => onResizeStart('s', e)}
-          />
-          <div
-            className={`${handleClass} left-0 top-full cursor-nesw-resize`}
-            onPointerDown={(e) => onResizeStart('sw', e)}
-          />
-          <div
-            className={`${handleClass} left-0 top-1/2 cursor-ew-resize`}
-            onPointerDown={(e) => onResizeStart('w', e)}
-          />
-          
-          {/* Rotation Handle */}
-          <div
-            className="absolute left-1/2 -top-[34px] -translate-x-1/2 w-5.5 h-5.5 rounded-full bg-white border border-indigo-500 shadow-md flex items-center justify-center cursor-grab pointer-events-auto hover:bg-indigo-50"
+            className="absolute left-1/2 pointer-events-all flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing"
+            style={{
+              top: -44, transform: 'translateX(-50%)',
+              width: 24, height: 24,
+              background: 'white',
+              border: '2px solid rgba(99,102,241,0.8)',
+              boxShadow: '0 2px 8px rgba(99,102,241,0.2)',
+              zIndex: 999999,
+            }}
             onPointerDown={onRotateStart}
-            title="Rotate Element"
           >
-            <span className="text-[10px] text-indigo-500 font-extrabold select-none">↻</span>
+            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-accent-DEFAULT" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M13 8A5 5 0 1 1 8 3" strokeLinecap="round" />
+              <path d="M8 1l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </div>
-          <div 
-            className="absolute left-1/2 -top-[16px] -translate-x-1/2 w-0.5 h-[16px] bg-indigo-500/70"
-          />
         </>
       )}
     </div>

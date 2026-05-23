@@ -1,8 +1,12 @@
 import { create } from 'zustand';
 
+export type ElementType =
+  | 'note' | 'rect' | 'circle' | 'line' | 'arrow'
+  | 'draw' | 'text' | 'handwriting' | 'frame' | 'image';
+
 export interface CanvasElement {
   id: string;
-  type: 'note' | 'rect' | 'circle' | 'line' | 'arrow' | 'draw' | 'text' | 'frame' | 'image';
+  type: ElementType;
   x: number;
   y: number;
   w?: number;
@@ -10,17 +14,25 @@ export interface CanvasElement {
   x2?: number;
   y2?: number;
   rot?: number;
-  color?: string; // Preset note background
-  text?: string;  // Content for notes/text
-  fill?: string;  // Object fill color
-  stroke?: string;// Object border or text color
+  color?: string;
+  text?: string;
+  fill?: string;
+  stroke?: string;
   strokeWidth?: number;
-  radius?: number;// Rect radius
-  closed?: boolean; // Close path for draw
+  radius?: number;
+  roughness?: number;
+  closed?: boolean;
   points?: { x: number; y: number }[];
   z: number;
+  src?: string;
+  fontSize?: number;
+  fontFamily?: string;
+  align?: 'left' | 'center' | 'right';
+  opacity?: number;
+  flipH?: boolean;
+  flipV?: boolean;
+  locked?: boolean;
   _typing?: boolean;
-  src?: string;   // Base64 image data source
 }
 
 export interface Viewport {
@@ -31,6 +43,7 @@ export interface Viewport {
 
 interface CanvasState {
   theme: 'light' | 'dark';
+  boardId: string | null;
   boardName: string;
   viewport: Viewport;
   elements: CanvasElement[];
@@ -40,12 +53,9 @@ interface CanvasState {
   snap: boolean;
   showMini: boolean;
   clipboard: CanvasElement[] | null;
-  history: {
-    past: string[];
-    future: string[];
-  };
-  
-  // Actions
+  history: { past: string[]; future: string[] };
+
+  setBoardId: (id: string) => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
   setBoardName: (name: string) => void;
@@ -69,7 +79,7 @@ interface CanvasState {
   distributeSelection: (axis: 'x' | 'y') => void;
   fitToScreen: (viewportWidth: number, viewportHeight: number) => void;
   importBoard: (elements: CanvasElement[], name?: string, viewport?: Viewport) => void;
-  hydrate: () => void;
+  hydrate: (boardId?: string) => void;
   saveToStorage: () => void;
   bringToFront: (id: string) => void;
   sendToBack: (id: string) => void;
@@ -78,10 +88,10 @@ interface CanvasState {
 }
 
 const uid = () => 'el_' + Math.random().toString(36).slice(2, 9);
-const notes = { sun: '#FEF3C7', rose: '#FFE4E6', sky: '#E0F2FE', sage: '#DCFCE7', lilac: '#F3E8FF', peach: '#FFEDD5' };
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   theme: 'light',
+  boardId: null,
   boardName: 'Untitled Board',
   viewport: { x: 260, y: 140, zoom: 1 },
   elements: [],
@@ -93,9 +103,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   clipboard: null,
   history: { past: [], future: [] },
 
+  setBoardId: (id) => set({ boardId: id }),
+
   setTheme: (theme) => {
     set({ theme });
-    document.body.dataset.theme = theme;
+    if (typeof document !== 'undefined') document.body.dataset.theme = theme;
   },
 
   toggleTheme: () => {
@@ -104,23 +116,18 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     get().saveToStorage();
   },
 
-  setBoardName: (boardName) => {
-    set({ boardName });
-    get().saveToStorage();
-  },
+  setBoardName: (boardName) => { set({ boardName }); get().saveToStorage(); },
 
   setViewport: (patch) => {
     set((state) => ({
       viewport: typeof patch === 'function' ? patch(state.viewport) : { ...state.viewport, ...patch },
     }));
-    get().saveToStorage();
   },
 
   setElements: (els) => {
     set((state) => ({
       elements: typeof els === 'function' ? els(state.elements) : els,
     }));
-    get().saveToStorage();
   },
 
   updateElement: (id, patch) => {
@@ -132,57 +139,33 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   addElement: (el) => {
     get().pushHistory();
-    set((state) => ({
-      elements: [...state.elements, el],
-      selected: [el.id],
-    }));
+    set((state) => ({ elements: [...state.elements, el], selected: [el.id] }));
     get().saveToStorage();
   },
 
   setSelected: (selected) => set({ selected }),
-
   setTool: (activeTool) => set({ activeTool }),
-
-  toggleGrid: () => {
-    set((state) => ({ showGrid: !state.showGrid }));
-    get().saveToStorage();
-  },
-
-  toggleSnap: () => {
-    set((state) => ({ snap: !state.snap }));
-    get().saveToStorage();
-  },
-
-  toggleMini: () => {
-    set((state) => ({ showMini: !state.showMini }));
-    get().saveToStorage();
-  },
+  toggleGrid: () => { set((s) => ({ showGrid: !s.showGrid })); get().saveToStorage(); },
+  toggleSnap: () => { set((s) => ({ snap: !s.snap })); get().saveToStorage(); },
+  toggleMini: () => { set((s) => ({ showMini: !s.showMini })); get().saveToStorage(); },
 
   pushHistory: () => {
     const cur = JSON.stringify(get().elements);
     set((state) => {
       const past = [...state.history.past, cur];
       if (past.length > 100) past.shift();
-      return {
-        history: { past, future: [] },
-      };
+      return { history: { past, future: [] } };
     });
   },
 
   undo: () => {
     const { past, future } = get().history;
     if (!past.length) return;
-    const prevStr = past[past.length - 1];
-    const prev = JSON.parse(prevStr);
+    const prev = JSON.parse(past[past.length - 1]);
     const curStr = JSON.stringify(get().elements);
-
     set({
-      elements: prev,
-      selected: [],
-      history: {
-        past: past.slice(0, -1),
-        future: [...future, curStr],
-      },
+      elements: prev, selected: [],
+      history: { past: past.slice(0, -1), future: [...future, curStr] },
     });
     get().saveToStorage();
   },
@@ -190,16 +173,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   redo: () => {
     const { past, future } = get().history;
     if (!future.length) return;
-    const nextStr = future[future.length - 1];
-    const next = JSON.parse(nextStr);
+    const next = JSON.parse(future[future.length - 1]);
     const curStr = JSON.stringify(get().elements);
-
     set({
       elements: next,
-      history: {
-        past: [...past, curStr],
-        future: future.slice(0, -1),
-      },
+      history: { past: [...past, curStr], future: future.slice(0, -1) },
     });
     get().saveToStorage();
   },
@@ -208,10 +186,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const { selected, elements } = get();
     if (!selected.length) return;
     get().pushHistory();
-    set({
-      elements: elements.filter((el) => !selected.includes(el.id)),
-      selected: [],
-    });
+    set({ elements: elements.filter((el) => !selected.includes(el.id)), selected: [] });
     get().saveToStorage();
   },
 
@@ -231,11 +206,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         y2: el.y2 !== undefined ? el.y2 + 28 : undefined,
         z: el.z + 1,
       }));
-
-    set((state) => ({
-      elements: [...state.elements, ...copies],
-      selected: copies.map((el) => el.id),
-    }));
+    set((state) => ({ elements: [...state.elements, ...copies], selected: copies.map((el) => el.id) }));
     get().saveToStorage();
   },
 
@@ -251,22 +222,15 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   pasteSelected: () => {
     const { clipboard } = get();
-    if (!clipboard || !clipboard.length) return;
+    if (!clipboard?.length) return;
     get().pushHistory();
     const copies = clipboard.map((el) => ({
-      ...el,
-      id: uid(),
-      x: el.x + 40,
-      y: el.y + 40,
+      ...el, id: uid(), x: el.x + 40, y: el.y + 40,
       x2: el.x2 !== undefined ? el.x2 + 40 : undefined,
       y2: el.y2 !== undefined ? el.y2 + 40 : undefined,
       z: el.z + 2,
     }));
-
-    set((state) => ({
-      elements: [...state.elements, ...copies],
-      selected: copies.map((el) => el.id),
-    }));
+    set((state) => ({ elements: [...state.elements, ...copies], selected: copies.map((el) => el.id) }));
     get().saveToStorage();
   },
 
@@ -274,58 +238,36 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const { selected, elements } = get();
     if (selected.length < 2) return;
     get().pushHistory();
-
-    const selectedElements = selected
+    const selected_els = selected
       .map((id) => elements.find((el) => el.id === id))
       .filter((el): el is CanvasElement => !!el);
-
-    const boundsList = selectedElements.map((el) => {
+    const getBounds = (el: CanvasElement) => {
       if (el.type === 'line' || el.type === 'arrow') {
-        const x = Math.min(el.x, el.x2 || el.x);
-        const y = Math.min(el.y, el.y2 || el.y);
-        const w = Math.abs((el.x2 || el.x) - el.x) || 1;
-        const h = Math.abs((el.y2 || el.y) - el.y) || 1;
-        return { id: el.id, x, y, w, h };
+        const x = Math.min(el.x, el.x2 || el.x), y = Math.min(el.y, el.y2 || el.y);
+        return { id: el.id, x, y, w: Math.abs((el.x2 || el.x) - el.x) || 1, h: Math.abs((el.y2 || el.y) - el.y) || 1 };
       }
       return { id: el.id, x: el.x, y: el.y, w: el.w || 100, h: el.h || 60 };
-    });
-
-    const left = Math.min(...boundsList.map((b) => b.x));
-    const right = Math.max(...boundsList.map((b) => b.x + b.w));
-    const top = Math.min(...boundsList.map((b) => b.y));
-    const bottom = Math.max(...boundsList.map((b) => b.y + b.h));
-    const cx = (left + right) / 2;
-    const cy = (top + bottom) / 2;
-
-    const moveElement = (el: CanvasElement, newX: number, newY: number) => {
-      if (el.type === 'line' || el.type === 'arrow') {
-        const dx = newX - el.x;
-        const dy = newY - el.y;
-        el.x += dx;
-        el.y += dy;
-        if (el.x2 !== undefined) el.x2 += dx;
-        if (el.y2 !== undefined) el.y2 += dy;
-      } else {
-        el.x = newX;
-        el.y = newY;
-      }
     };
-
-    set((state) => {
-      const nextElements = state.elements.map((el) => {
+    const bounds = selected_els.map(getBounds);
+    const left   = Math.min(...bounds.map((b) => b.x));
+    const right  = Math.max(...bounds.map((b) => b.x + b.w));
+    const top    = Math.min(...bounds.map((b) => b.y));
+    const bottom = Math.max(...bounds.map((b) => b.y + b.h));
+    const cx = (left + right) / 2, cy = (top + bottom) / 2;
+    set((state) => ({
+      elements: state.elements.map((el) => {
         if (!selected.includes(el.id)) return el;
+        const b = bounds.find((it) => it.id === el.id)!;
         const copy = { ...el };
-        const b = boundsList.find((it) => it.id === el.id)!;
-        if (alignment === 'left') moveElement(copy, left, b.y);
-        if (alignment === 'right') moveElement(copy, right - b.w, b.y);
-        if (alignment === 'center') moveElement(copy, cx - b.w / 2, b.y);
-        if (alignment === 'top') moveElement(copy, b.x, top);
-        if (alignment === 'bottom') moveElement(copy, b.x, bottom - b.h);
-        if (alignment === 'middle') moveElement(copy, b.x, cy - b.h / 2);
+        if (alignment === 'left')   { copy.x = left; }
+        if (alignment === 'right')  { copy.x = right - b.w; }
+        if (alignment === 'center') { copy.x = cx - b.w / 2; }
+        if (alignment === 'top')    { copy.y = top; }
+        if (alignment === 'bottom') { copy.y = bottom - b.h; }
+        if (alignment === 'middle') { copy.y = cy - b.h / 2; }
         return copy;
-      });
-      return { elements: nextElements };
-    });
+      }),
+    }));
     get().saveToStorage();
   },
 
@@ -333,198 +275,106 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     const { selected, elements } = get();
     if (selected.length < 3) return;
     get().pushHistory();
-
-    const selectedElements = selected
+    const items = selected
       .map((id) => elements.find((el) => el.id === id))
-      .filter((el): el is CanvasElement => !!el);
-
-    const items = selectedElements.map((el) => {
-      let x = el.x, y = el.y, w = el.w || 100, h = el.h || 60;
-      if (el.type === 'line' || el.type === 'arrow') {
-        x = Math.min(el.x, el.x2 || el.x);
-        y = Math.min(el.y, el.y2 || el.y);
-        w = Math.abs((el.x2 || el.x) - el.x) || 1;
-        h = Math.abs((el.y2 || el.y) - el.y) || 1;
-      }
-      return { el, x, y, w, h };
-    });
-
-    items.sort((a, b) => (axis === 'x' ? a.x - b.x : a.y - b.y));
-
-    const first = items[0];
-    const last = items[items.length - 1];
-    const startVal = axis === 'x' ? first.x : first.y;
-    const endVal = axis === 'x' ? last.x : last.y;
-    const gap = (endVal - startVal) / (items.length - 1);
-
-    const moveElement = (el: CanvasElement, newX: number, newY: number) => {
-      if (el.type === 'line' || el.type === 'arrow') {
-        const dx = newX - el.x;
-        const dy = newY - el.y;
-        el.x += dx;
-        el.y += dy;
-        if (el.x2 !== undefined) el.x2 += dx;
-        if (el.y2 !== undefined) el.y2 += dy;
-      } else {
-        el.x = newX;
-        el.y = newY;
-      }
-    };
-
-    set((state) => {
-      const nextElements = state.elements.map((el) => {
-        const index = items.findIndex((it) => it.el.id === el.id);
-        if (index === -1) return el;
-        const copy = { ...el };
-        const item = items[index];
-        if (axis === 'x') {
-          moveElement(copy, startVal + gap * index, item.y);
-        } else {
-          moveElement(copy, item.x, startVal + gap * index);
+      .filter((el): el is CanvasElement => !!el)
+      .map((el) => {
+        let x = el.x, y = el.y, w = el.w || 100, h = el.h || 60;
+        if (el.type === 'line' || el.type === 'arrow') {
+          x = Math.min(el.x, el.x2 || el.x); y = Math.min(el.y, el.y2 || el.y);
+          w = Math.abs((el.x2 || el.x) - el.x) || 1; h = Math.abs((el.y2 || el.y) - el.y) || 1;
         }
-        return copy;
-      });
-      return { elements: nextElements };
-    });
+        return { el, x, y, w, h };
+      })
+      .sort((a, b) => (axis === 'x' ? a.x - b.x : a.y - b.y));
+    const first = items[0], last = items[items.length - 1];
+    const startVal = axis === 'x' ? first.x : first.y;
+    const endVal   = axis === 'x' ? last.x  : last.y;
+    const gap = (endVal - startVal) / (items.length - 1);
+    set((state) => ({
+      elements: state.elements.map((el) => {
+        const idx = items.findIndex((it) => it.el.id === el.id);
+        if (idx === -1) return el;
+        const item = items[idx];
+        return axis === 'x'
+          ? { ...el, x: startVal + gap * idx }
+          : { ...el, y: startVal + gap * idx, x: item.x };
+      }),
+    }));
     get().saveToStorage();
   },
 
   fitToScreen: (vw, vh) => {
     const { elements } = get();
-    if (!elements.length) return;
-    
-    const boundsList = elements.map((el) => {
+    if (!elements.length) { set({ viewport: { x: vw / 2, y: vh / 2, zoom: 1 } }); return; }
+    const bounds = elements.map((el) => {
       if (el.type === 'line' || el.type === 'arrow') {
-        const x = Math.min(el.x, el.x2 || el.x);
-        const y = Math.min(el.y, el.y2 || el.y);
-        const w = Math.abs((el.x2 || el.x) - el.x) || 1;
-        const h = Math.abs((el.y2 || el.y) - el.y) || 1;
-        return { x, y, w, h };
+        const x = Math.min(el.x, el.x2 || el.x), y = Math.min(el.y, el.y2 || el.y);
+        return { x, y, w: Math.abs((el.x2 || el.x) - el.x) || 1, h: Math.abs((el.y2 || el.y) - el.y) || 1 };
       }
       return { x: el.x, y: el.y, w: el.w || 100, h: el.h || 60 };
     });
-
-    const minX = Math.min(...boundsList.map((b) => b.x));
-    const minY = Math.min(...boundsList.map((b) => b.y));
-    const maxX = Math.max(...boundsList.map((b) => b.x + b.w));
-    const maxY = Math.max(...boundsList.map((b) => b.y + b.h));
-
-    const contentW = maxX - minX;
-    const contentH = maxY - minY;
-    
-    const zoom = Math.max(0.15, Math.min(2, Math.min((vw - 220) / contentW, (vh - 160) / contentH)));
-    const x = (vw - contentW * zoom) / 2 - minX * zoom;
-    const y = (vh - contentH * zoom) / 2 - minY * zoom;
-
-    set({ viewport: { x, y, zoom } });
+    const minX = Math.min(...bounds.map((b) => b.x));
+    const minY = Math.min(...bounds.map((b) => b.y));
+    const maxX = Math.max(...bounds.map((b) => b.x + b.w));
+    const maxY = Math.max(...bounds.map((b) => b.y + b.h));
+    const contentW = maxX - minX, contentH = maxY - minY;
+    const zoom = Math.max(0.15, Math.min(2, Math.min((vw - 200) / contentW, (vh - 160) / contentH)));
+    set({ viewport: { x: (vw - contentW * zoom) / 2 - minX * zoom, y: (vh - contentH * zoom) / 2 - minY * zoom, zoom } });
     get().saveToStorage();
   },
 
   importBoard: (elements, name, viewport) => {
     get().pushHistory();
     set((state) => ({
-      elements,
-      boardName: name || state.boardName,
-      viewport: viewport || state.viewport,
-      selected: [],
+      elements, boardName: name || state.boardName,
+      viewport: viewport || state.viewport, selected: [],
     }));
     get().saveToStorage();
   },
 
   bringToFront: (id) => {
     get().pushHistory();
-    const elements = [...get().elements];
-    if (elements.length <= 1) return;
-    
-    const sorted = [...elements].sort((a, b) => (a.z || 0) - (b.z || 0));
-    sorted.forEach((el, index) => {
-      el.z = index;
-    });
-    
-    const targetIdx = sorted.findIndex((el) => el.id === id);
-    if (targetIdx === -1) return;
-    
-    const target = sorted[targetIdx];
-    const maxZ = sorted[sorted.length - 1].z;
-    target.z = maxZ + 1;
-    
-    set({ elements: sorted });
+    const els = get().elements;
+    const maxZ = Math.max(...els.map((e) => e.z || 0));
+    set({ elements: els.map((e) => e.id === id ? { ...e, z: maxZ + 1 } : e) });
     get().saveToStorage();
   },
 
   sendToBack: (id) => {
     get().pushHistory();
-    const elements = [...get().elements];
-    if (elements.length <= 1) return;
-    
-    const sorted = [...elements].sort((a, b) => (a.z || 0) - (b.z || 0));
-    sorted.forEach((el, index) => {
-      el.z = index;
-    });
-    
-    const targetIdx = sorted.findIndex((el) => el.id === id);
-    if (targetIdx === -1) return;
-    
-    const target = sorted[targetIdx];
-    const minZ = sorted[0].z;
-    target.z = minZ - 1;
-    
-    set({ elements: sorted });
+    const els = get().elements;
+    const minZ = Math.min(...els.map((e) => e.z || 0));
+    set({ elements: els.map((e) => e.id === id ? { ...e, z: minZ - 1 } : e) });
     get().saveToStorage();
   },
 
   bringForward: (id) => {
     get().pushHistory();
-    const elements = [...get().elements];
-    if (elements.length <= 1) return;
-    
-    const sorted = [...elements].sort((a, b) => (a.z || 0) - (b.z || 0));
-    sorted.forEach((el, index) => {
-      el.z = index;
-    });
-    
-    const targetIdx = sorted.findIndex((el) => el.id === id);
-    if (targetIdx === -1 || targetIdx === sorted.length - 1) return;
-    
-    const next = sorted[targetIdx + 1];
-    const target = sorted[targetIdx];
-    
-    const tempZ = target.z;
-    target.z = next.z;
-    next.z = tempZ;
-    
-    set({ elements: sorted });
+    const sorted = [...get().elements].sort((a, b) => (a.z || 0) - (b.z || 0));
+    const idx = sorted.findIndex((e) => e.id === id);
+    if (idx === -1 || idx === sorted.length - 1) return;
+    const next = sorted[idx + 1];
+    set({ elements: get().elements.map((e) => e.id === id ? { ...e, z: next.z } : e.id === next.id ? { ...e, z: sorted[idx].z } : e) });
     get().saveToStorage();
   },
 
   sendBackward: (id) => {
     get().pushHistory();
-    const elements = [...get().elements];
-    if (elements.length <= 1) return;
-    
-    const sorted = [...elements].sort((a, b) => (a.z || 0) - (b.z || 0));
-    sorted.forEach((el, index) => {
-      el.z = index;
-    });
-    
-    const targetIdx = sorted.findIndex((el) => el.id === id);
-    if (targetIdx === -1 || targetIdx === 0) return;
-    
-    const prev = sorted[targetIdx - 1];
-    const target = sorted[targetIdx];
-    
-    const tempZ = target.z;
-    target.z = prev.z;
-    prev.z = tempZ;
-    
-    set({ elements: sorted });
+    const sorted = [...get().elements].sort((a, b) => (a.z || 0) - (b.z || 0));
+    const idx = sorted.findIndex((e) => e.id === id);
+    if (idx <= 0) return;
+    const prev = sorted[idx - 1];
+    set({ elements: get().elements.map((e) => e.id === id ? { ...e, z: prev.z } : e.id === prev.id ? { ...e, z: sorted[idx].z } : e) });
     get().saveToStorage();
   },
 
-  hydrate: () => {
+  hydrate: (boardId) => {
     if (typeof window === 'undefined') return;
+    const id = boardId ?? get().boardId;
     try {
-      const saved = localStorage.getItem('canvex-board');
+      const key = id ? `inkspace-board-${id}` : 'inkspace-board';
+      const saved = localStorage.getItem(key);
       if (saved) {
         const data = JSON.parse(saved);
         set((state) => ({
@@ -535,25 +385,22 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           snap: !!data.snap,
           showMini: data.showMini !== false,
         }));
-      }
-      const t = localStorage.getItem('canvex-theme') as 'light' | 'dark';
-      if (t) {
-        get().setTheme(t);
       } else {
-        get().setTheme('light');
+        // Fresh board — reset state
+        set({ boardName: 'Untitled Board', viewport: { x: 260, y: 140, zoom: 1 }, elements: [], selected: [], history: { past: [], future: [] } });
       }
-    } catch (e) {
-      console.warn('Hydration failed', e);
-    }
+      const t = localStorage.getItem('inkspace-theme') as 'light' | 'dark';
+      get().setTheme(t || 'light');
+    } catch { /* ignore */ }
   },
 
   saveToStorage: () => {
     if (typeof window === 'undefined') return;
-    const { boardName, viewport, elements, showGrid, snap, showMini, theme } = get();
-    localStorage.setItem('canvex-theme', theme);
-    localStorage.setItem(
-      'canvex-board',
-      JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini })
-    );
+    const { boardId, boardName, viewport, elements, showGrid, snap, showMini, theme } = get();
+    try {
+      localStorage.setItem('inkspace-theme', theme);
+      const key = boardId ? `inkspace-board-${boardId}` : 'inkspace-board';
+      localStorage.setItem(key, JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini }));
+    } catch { /* ignore quota errors */ }
   },
 }));

@@ -1,317 +1,198 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import { useCanvasStore } from '../../store/canvasStore';
-import { 
-  HelpCircle, 
-  Upload, 
-  Download, 
-  ChevronDown, 
-  Sun, 
-  Moon, 
-  Users 
-} from 'lucide-react';
+import { useCollabStore } from '../../store/collabStore';
 import { compressAndResizeImage } from '../../utils/imageHelper';
 
 interface HeaderProps {
   toast: (msg: string, color?: string) => void;
   onOpenHelp: () => void;
+  onExport: () => void;
+  onShare?: () => void;
   viewportRef: React.RefObject<HTMLDivElement>;
 }
 
-export const Header: React.FC<HeaderProps> = ({ toast, onOpenHelp, viewportRef }) => {
-  const store = useCanvasStore();
-  const [exportOpen, setExportOpen] = useState(false);
+function SunIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <circle cx="12" cy="12" r="5" />
+      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+    </svg>
+  );
+}
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    store.setBoardName(e.target.value);
+function MoonIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+    </svg>
+  );
+}
+
+function LogoIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+    </svg>
+  );
+}
+
+function ShareIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
+    </svg>
+  );
+}
+
+function initials(name: string) {
+  return name.split(' ').map((p) => p[0]).join('').slice(0, 2).toUpperCase();
+}
+
+export const Header: React.FC<HeaderProps> = ({ toast, onOpenHelp, onExport, onShare, viewportRef }) => {
+  const store = useCanvasStore();
+  const { remoteUsers } = useCollabStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportJSON = () => {
+    const data = JSON.stringify({ boardName: store.boardName, viewport: store.viewport, elements: store.elements }, null, 2);
+    const link = document.createElement('a');
+    link.download = `${store.boardName.replace(/\s+/g, '-')}.inkspace.json`;
+    link.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(data);
+    link.click();
+    toast('Board exported as JSON');
   };
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     if (file.type.startsWith('image/')) {
-      toast('Processing imported image...', '#6366F1');
       const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64Str = event.target?.result as string;
-        const state = useCanvasStore.getState();
-        const viewportW = window.innerWidth;
-        const viewportH = window.innerHeight;
-        
-        const centerX = (viewportW / 2 - state.viewport.x) / state.viewport.zoom;
-        const centerY = (viewportH / 2 - state.viewport.y) / state.viewport.zoom;
-
-        const compressed = await compressAndResizeImage(base64Str);
-
-        store.addElement({
-          id: 'el_' + Math.random().toString(36).slice(2, 9),
-          type: 'image',
-          x: centerX - compressed.w / 2,
-          y: centerY - compressed.h / 2,
-          w: compressed.w,
-          h: compressed.h,
-          src: compressed.src,
-          z: Date.now() % 100000,
-        });
-        toast('Image imported successfully!', '#10B981');
+      reader.onload = async (ev) => {
+        const b64 = ev.target?.result as string;
+        const vp = store.viewport;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const cx = (vw / 2 - vp.x) / vp.zoom;
+        const cy = (vh / 2 - vp.y) / vp.zoom;
+        const img = await compressAndResizeImage(b64);
+        store.addElement({ id: 'el_' + Math.random().toString(36).slice(2, 9), type: 'image', x: cx - img.w / 2, y: cy - img.h / 2, w: img.w, h: img.h, src: img.src, z: Date.now() % 100000 });
+        toast('Image added to canvas!');
       };
       reader.readAsDataURL(file);
       e.target.value = '';
       return;
     }
-
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const text = reader.result as string;
-        const cleanText = text.replace(/^\ufeff/, '');
-        const data = JSON.parse(cleanText);
-        
-        let elements = null;
-        let boardName = store.boardName;
-        let viewport = store.viewport;
-
-        if (Array.isArray(data)) {
-          elements = data;
-        } else if (data && typeof data === 'object') {
-          elements = Array.isArray(data.elements) ? data.elements : null;
-          if (data.boardName) boardName = data.boardName;
-          if (data.viewport) viewport = data.viewport;
-        }
-
-        if (elements) {
-          store.importBoard(elements, boardName, viewport);
-          toast('Board imported successfully!', '#10B981');
-        } else {
-          toast('Invalid board file structure: "elements" array not found', '#F43F5E');
-        }
-      } catch (err) {
-        toast('Failed to parse board file: invalid JSON format', '#F43F5E');
-      }
-      
-      // Reset input value so onChange can be triggered for the same file consecutively
+        const data = JSON.parse((reader.result as string).replace(/^﻿/, ''));
+        const els = Array.isArray(data) ? data : data.elements;
+        if (els) { store.importBoard(els, data.boardName, data.viewport); toast('Board imported!'); }
+        else toast('Invalid board file');
+      } catch { toast('Failed to parse file'); }
       e.target.value = '';
     };
     reader.readAsText(file);
   };
 
-  const handleExportJSON = () => {
-    const data = {
-      boardName: store.boardName,
-      viewport: store.viewport,
-      elements: store.elements,
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${store.boardName.toLowerCase().replace(/\s+/g, '-')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Board state exported as JSON', '#6366F1');
-    setExportOpen(false);
-  };
-
-  const triggerRegionExport = () => {
-    store.setTool('export');
-    toast('Select region to export · Esc to cancel', '#6366F1');
-    setExportOpen(false);
-  };
-
-  const handleExportSVG = () => {
-    if (!viewportRef.current) return;
-    
-    // Simple mock visibility export as per Vanilla
-    const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="100%" height="100%">
-      <rect width="100%" height="100%" fill="${store.theme === 'light' ? '#F7F6F3' : '#0C0B10'}" />
-      ${store.elements.map(el => {
-        if (el.type === 'rect') return `<rect x="${el.x}" y="${el.y}" width="${el.w || 100}" height="${el.h || 60}" rx="${el.radius || 8}" fill="${el.fill || 'rgba(99,102,241,0.08)'}" stroke="${el.stroke || '#6366F1'}" stroke-width="${el.strokeWidth || 2}" />`;
-        if (el.type === 'circle') return `<ellipse cx="${el.x + (el.w || 100)/2}" cy="${el.y + (el.h || 60)/2}" rx="${(el.w || 100)/2}" ry="${(el.h || 60)/2}" fill="${el.fill || 'rgba(99,102,241,0.08)'}" stroke="${el.stroke || '#6366F1'}" stroke-width="${el.strokeWidth || 2}" />`;
-        if (el.type === 'note') return `<rect x="${el.x}" y="${el.y}" width="${el.w || 220}" height="${el.h || 220}" rx="12" fill="#FEF3C7" stroke="rgba(0,0,0,0.06)" stroke-width="1" />`;
-        if (el.type === 'text') return `<text x="${el.x}" y="${el.y + 30}" font-family="sans-serif" font-size="30" fill="${el.stroke || '#1A1523'}">${el.text || ''}</text>`;
-        return '';
-      }).join('\n')}
-    </svg>`;
-
-    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${store.boardName.toLowerCase().replace(/\s+/g, '-')}.svg`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast('Visible SVG exported', '#6366F1');
-    setExportOpen(false);
-  };
+  const onlineCount = remoteUsers.length;
 
   return (
-    <header className="absolute top-0 left-0 right-0 h-14 bg-panel backdrop-blur-md border-b border-borderLine flex items-center gap-4 px-4 z-30 select-none shadow-sm pointer-events-auto">
-      {/* Brand Logomark */}
-      <div className="flex items-center gap-2">
-        <svg 
-          className="w-7 h-7 filter drop-shadow-[0_8px_18px_rgba(99,102,241,0.25)] text-indigo-500" 
-          viewBox="0 0 32 32"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+    <header
+      id="header-bar"
+      className="fixed top-0 left-0 right-0 z-[9500] flex items-center justify-between px-4 glass-panel"
+      style={{ height: 52, borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none', borderBottom: '0.5px solid var(--border)' }}
+    >
+      {/* Left: Logo + board name */}
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div
+          className="flex items-center justify-center rounded-[8px] shrink-0"
+          style={{ width: 28, height: 28, background: 'var(--accent)' }}
         >
-          <path d="M16 3 L27 9.5 V22.5 L16 29 L5 22.5 V9.5 Z" />
-          <path d="M23 23 L29 29" className="text-indigo-400" />
-        </svg>
-        <span className="font-ui text-sm font-black tracking-widest text-primaryText uppercase hidden sm:inline">
-          CANVEX
-        </span>
-      </div>
-
-      <div className="w-[1px] h-5 bg-borderLine hidden sm:block" />
-
-      {/* Editable Board Title */}
-      <div className="flex items-center gap-1.5 max-w-[200px] sm:max-w-xs">
+          <LogoIcon />
+        </div>
         <input
-          type="text"
           value={store.boardName}
-          onChange={handleNameChange}
-          className="font-display italic text-lg sm:text-xl font-bold bg-transparent text-primaryText focus:bg-hover hover:bg-hover px-2 py-0.5 rounded-lg outline-none w-full transition-colors border border-transparent focus:border-borderLine"
-          placeholder="Untitled Board"
+          onChange={(e) => store.setBoardName(e.target.value || 'Untitled')}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+          className="min-w-0 max-w-[180px] truncate bg-transparent outline-none rounded-[8px] px-2 py-0.5 transition-colors"
+          style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)' }}
+          onFocus={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+          onBlur={(e) => (e.currentTarget.style.background = 'transparent')}
         />
       </div>
 
-      <div className="flex-1" />
+      {/* Center: real collab avatars (desktop only) */}
+      <div className="absolute left-1/2 -translate-x-1/2 hidden md:flex items-center gap-2">
+        {onlineCount > 0 ? (
+          <>
+            <div className="flex">
+              {remoteUsers.slice(0, 4).map((u, i) => (
+                <div
+                  key={u.clientId}
+                  title={`${u.name} — online`}
+                  className="relative flex items-center justify-center rounded-full text-white select-none"
+                  style={{
+                    width: 28, height: 28,
+                    background: u.color,
+                    border: '2px solid var(--bg-surface)',
+                    marginLeft: i > 0 ? -8 : 0,
+                    fontSize: 10, fontWeight: 700,
+                    fontFamily: 'var(--font-ui)',
+                    zIndex: 4 - i,
+                  }}
+                >
+                  {initials(u.name)}
+                  <span className="absolute rounded-full"
+                    style={{ width: 7, height: 7, background: 'var(--green)', border: '1.5px solid var(--bg-surface)', bottom: -1, right: -1 }} />
+                </div>
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
+              {onlineCount} online
+            </span>
+          </>
+        ) : (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-ui)' }}>
+            Only you — share to collaborate
+          </span>
+        )}
+      </div>
 
-      {/* Control Actions & Buttons */}
-      <div className="flex items-center gap-2">
-        {/* Help Menu Trigger */}
+      {/* Right: actions */}
+      <div className="flex items-center gap-1">
+        {/* Share link */}
         <button
-          onClick={onOpenHelp}
-          className="h-9 px-3.5 rounded-xl border border-borderLine text-mutedText hover:bg-hover hover:text-primaryText font-ui text-xs font-bold transition-all flex items-center gap-1.5"
-          title="Keyboard Shortcuts Guide"
+          onClick={onShare}
+          className="primary-button hidden md:flex items-center gap-1.5"
+          style={{ padding: '5px 12px', fontSize: 13 }}
         >
-          <HelpCircle className="w-4 h-4 text-indigo-500" />
-          <span className="hidden md:inline">Help</span>
+          <ShareIcon />
+          Share
         </button>
 
-        {/* Dynamic Board Import */}
-        <label 
-          htmlFor="canvex-import-input"
-          className="h-9 px-3.5 rounded-xl border border-borderLine text-mutedText hover:bg-hover hover:text-primaryText font-ui text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none"
-        >
-          <Upload className="w-4 h-4 text-indigo-500" />
-          <span className="hidden md:inline">Import</span>
+        <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+
+        {/* Import */}
+        <label title="Import board or image" className="icon-button cursor-pointer">
+          <input ref={fileInputRef} type="file" accept=".json,image/*" onChange={handleImport} className="hidden" />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+          </svg>
         </label>
-        <input
-          id="canvex-import-input"
-          type="file"
-          accept=".json,application/json,image/*"
-          onChange={handleImport}
-          className="hidden"
-        />
 
-        {/* Active Collaborator Badges */}
-        <div className="hidden sm:flex items-center ml-2 border border-borderLine rounded-full p-0.5 bg-surface/50">
-          <div 
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white border-2 border-surface relative shadow-sm"
-            style={{ backgroundColor: '#F43F5E' }}
-            title="Priya S. (Online)"
-          >
-            PS
-            <span className="absolute -right-0.5 -bottom-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-surface" />
-          </div>
-          <div 
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white border-2 border-surface -ml-2.5 relative shadow-sm"
-            style={{ backgroundColor: '#10B981' }}
-            title="James K. (Active)"
-          >
-            JK
-          </div>
-          <div 
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-black text-white border-2 border-surface -ml-2.5 relative shadow-sm"
-            style={{ backgroundColor: '#F59E0B' }}
-            title="Lena V. (Viewing)"
-          >
-            LV
-          </div>
-          <div 
-            className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-black text-mutedText bg-hover border-2 border-surface -ml-2.5 relative"
-            title="+1 more spectator"
-          >
-            +1
-          </div>
-        </div>
+        {/* Export image */}
+        <button onClick={onExport} className="ghost-button hidden md:flex" style={{ padding: '5px 12px', fontSize: 13 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+          </svg>
+          Export
+        </button>
 
-        {/* Export Dropdown Wrappers */}
-        <div className="relative">
-          <button
-            onClick={() => setExportOpen(!exportOpen)}
-            className="h-9 px-3.5 rounded-xl border border-borderLine bg-surface text-primaryText hover:bg-hover font-ui text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
-          >
-            <Download className="w-4 h-4 text-indigo-500" />
-            <span>Export</span>
-            <ChevronDown className={`w-3.5 h-3.5 text-mutedText transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
-          </button>
-
-          {exportOpen && (
-            <>
-              {/* Invisible Click Backdrop */}
-              <div 
-                className="fixed inset-0 z-40 cursor-default" 
-                onClick={() => setExportOpen(false)}
-              />
-              <div className="absolute right-0 top-11 w-56 rounded-xl glass p-1.5 z-50 flex flex-col gap-1 shadow-lg animate-scale-in">
-                <button
-                  onClick={triggerRegionExport}
-                  className="w-full text-left h-8 px-2.5 rounded-lg text-xs font-ui text-secondaryText hover:bg-hover hover:text-primaryText flex items-center justify-between"
-                >
-                  <span>✂ Selection Crop</span>
-                  <span className="text-[9px] text-mutedText border border-borderLine rounded px-1">E</span>
-                </button>
-                <button
-                  onClick={handleExportSVG}
-                  className="w-full text-left h-8 px-2.5 rounded-lg text-xs font-ui text-secondaryText hover:bg-hover hover:text-primaryText flex items-center justify-between"
-                >
-                  <span>⬡ Visible SVG</span>
-                  <span className="text-[9px] text-mutedText border border-borderLine rounded px-1">SVG</span>
-                </button>
-                <button
-                  onClick={() => {
-                    toast('Compiling canvas to high-res PNG...', '#6366F1');
-                    setExportOpen(false);
-                  }}
-                  className="w-full text-left h-8 px-2.5 rounded-lg text-xs font-ui text-secondaryText hover:bg-hover hover:text-primaryText flex items-center justify-between"
-                >
-                  <span>▣ Visible PNG</span>
-                  <span className="text-[9px] text-mutedText border border-borderLine rounded px-1">PNG</span>
-                </button>
-                <div className="h-[1px] bg-borderLine my-1" />
-                <button
-                  onClick={handleExportJSON}
-                  className="w-full text-left h-8 px-2.5 rounded-lg text-xs font-ui text-secondaryText hover:bg-hover hover:text-primaryText flex items-center justify-between"
-                >
-                  <span>{} Board State JSON</span>
-                  <span className="text-[9px] text-mutedText border border-borderLine rounded px-1">JSON</span>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Cinematic Theme Toggle Pill */}
-        <button
-          onClick={store.toggleTheme}
-          className="h-9 w-16 rounded-full p-1 bg-hover border border-borderLine relative flex items-center justify-between text-mutedText overflow-hidden"
-          title="Toggle Light/Dark Theme"
-        >
-          <div 
-            className="absolute top-1 bottom-1 w-7 rounded-full bg-surface shadow-sm transition-transform duration-300"
-            style={{
-              transform: store.theme === 'dark' ? 'translateX(28px)' : 'translateX(0px)'
-            }}
-          />
-          <span className="z-10 text-[11px] ml-1.5">☀</span>
-          <span className="z-10 text-[11px] mr-1.5">🌙</span>
+        {/* Theme toggle */}
+        <button onClick={store.toggleTheme} title="Toggle theme" className="icon-button">
+          {store.theme === 'light' ? <MoonIcon /> : <SunIcon />}
         </button>
       </div>
     </header>
