@@ -1,75 +1,99 @@
-# CANVEX — Interactive Collaborative Whiteboard
+# CANVEX — Next.js Collaborative Whiteboard
 
-A self-contained, dependency-free browser build of the supplied CANVEX product/design spec.
+A performant, interactive, collaborative whiteboard application built with **Next.js**, **Zustand**, and **Y.js** featuring a premium **Apple Design System (HIG)** aesthetic.
 
-## Open
+---
 
-Open `index.html` in a browser or use the Arena file preview.
+## 🚀 Getting Started
 
-## What is built
+### 1. Install Dependencies
+```bash
+npm install
+```
 
-### Landing page
+### 2. Start the Development Server
+Runs the Next.js development server on [http://localhost:3000](http://localhost:3000).
+```bash
+npm run dev
+```
 
-- Fixed glass navbar with CANVEX brand, theme toggle, and launch CTA.
-- Animated hero with live mini-canvas atmosphere: floating sticky notes, typing cursor, self-drawing SVG shape, ghost collaborator cursors, and shimmer typography.
-- Social proof bar.
-- Sticky narrative feature sections for infinite canvas, collaboration, and region export.
-- Interactive mini-board teaser with draggable notes and add-note action.
-- Feature grid, pricing section, changelog section, testimonials, final CTA, and footer.
+### 3. Start the WebRTC Signaling Server (Optional for Multiplayer)
+To connect multiple local browser tabs/users in real-time, spin up the local y-webrtc signaling server:
+```bash
+npm run signaling
+```
 
-### Whiteboard app
+---
 
-- Cinematic page-wipe entry into the board.
-- Header with editable board name, collaborator avatars, help, JSON import, export menu, and light/dark theme toggle.
-- Infinite canvas with dot grid, direct transform pan/zoom, cursor-anchored wheel zoom, snap/grid toggles, and fit-to-screen.
-- Left tool rail with active states and tooltips.
-- Tools: Select, Hand, Sticky Note, Rectangle, Circle, Line, Arrow, Freehand Draw, Text, Frame, Lasso, and Region Export.
-- Sticky notes: handwritten styling, folded corner, contenteditable text, drag, resize, delete, color picker, shadows, and selected state.
-- Shapes: rectangle, circle, line, arrow, freehand polyline, text, and frame elements.
-- Multi-select: shift-click, select all, and lasso drag selection.
-- Right inspector panel for selected elements, including position/size, color/stroke controls, layer actions, delete, and multi-select state.
-- Region export flow: press `E`, draw a region, spotlight/marching-ants treatment, dimensions, export panel, PNG/JPEG/SVG download, scale/background controls, and peel animation.
-- Board export/import: JSON export and import via file picker or drag/drop.
-- Visible-area PNG/SVG export.
-- Command palette via `Ctrl/Cmd + K`.
-- Polished context menu on right-click.
-- Minimap with element previews and viewport indicator.
-- Toast system with progress bars.
-- Simulated collaboration: three colored cursors, activity toasts, element hover glow, and Priya typewriter edits.
-- Undo/redo snapshots.
-- Auto-save to localStorage and restore on refresh.
-- Responsive behavior for smaller screens.
+## 🎨 Key Features & Overhauls
 
-## Keyboard shortcuts
+### 1. Apple Design System Overhaul
+Migrated the entire design framework to a sleek Apple HIG (Human Interface Guidelines) aesthetic:
+* **UI Themes**: Full Light and Dark modes using premium Apple system colors (iOS Blue `#007AFF` / `#0A84FF`, system background canvas curves, border scales).
+* **Typography**: Integrated Google Inter font stack with hardware font smoothing (`-webkit-font-smoothing: antialiased`).
+* **Frosted Glass Panels**: Sleek glassmorphism (`glass-panel` utilities with dynamic spring easings, blur coefficients, and borders).
+* **iOS-style Grouped Lists**: Replaced the inspector panel with Apple UI styled segmented cards and smooth spring slide-outs.
 
-- `V` Select
-- `H` Hand / pan
-- `N` New sticky note
-- `R` Rectangle
-- `C` Circle
-- `L` Line
-- `A` Arrow
-- `D` Freehand draw
-- `T` Text
-- `F` Frame
-- `S` Lasso select
-- `E` Region export
-- `M` Toggle minimap
-- `G` Toggle grid
-- `Esc` Cancel / deselect
-- `Del / Backspace` Delete selected
-- `Ctrl/Cmd + K` Command palette
-- `Ctrl/Cmd + Z` Undo
-- `Ctrl/Cmd + Shift + Z` Redo
-- `Ctrl/Cmd + D` Duplicate
-- `Ctrl/Cmd + A` Select all
-- `Ctrl/Cmd + C/V` Copy/paste selected elements
-- `Ctrl/Cmd + 0` Fit to screen
-- `Ctrl/Cmd + +/-` Zoom
-- `Space + drag` Pan
+### 2. Real-Time Collaboration (Y.js Multiplayer)
+Integrated WebRTC networking using Y.js document structures:
+* **URL Rooms**: Opening `/board` automatically drops the administrator into a randomized, shareable multiplayer room (e.g., `/board/[room-id]`).
+* **Active Cursor Presence**: Real-time cursor coordinates and user identities are synced dynamically using WebRTC awareness.
+* **Synchronized State Map**: Whiteboard elements are managed within a Y.js shared Map structure ensuring zero-latency updates and consistency.
 
-## Implementation note
+### 3. Ghost Collaborator Simulator
+Simulates a collaborative multiplayer environment when testing solo:
+* **Trigger**: Activated automatically if no real peers connect to the room.
+* **Simulated Cursors**: Priya, James, and Lena move dynamically across the board, perform element creations, and make mock typewriter sticky note changes.
 
-This build is intentionally contained in `index.html` so it runs inside the Arena preview sandbox without npm installs, network access, external fonts, or CDN assets. The CSS still names the CANVEX typography system, with local fallbacks if those fonts are unavailable.
+### 4. Interactive Context Menu & Redesigned Toasts
+* **Context Menu**: Right-click canvas triggers a spring-animated menu enabling swift actions (Cut, Copy, Paste, Duplicate, Layering, and Deletes).
+* **Toast System**: Modern center-aligned notifications displaying state additions, template actions, or connection updates.
 
-# Big-market-task
+### 5. Multi-Device Layouts & Touch Support
+* **Mobile Toolbar**: Swaps out the desktop side tool rails for a neat bottom iOS layout on viewport shrink (< 768px).
+* **Inspector Sheet**: Selected elements on mobile display within a drag-dismissible iOS bottom-sheet panel.
+* **Touch Gestures**: Seamlessly pan and pinch-zoom with two-finger touch handlers on tablet/mobile screens.
+
+### 6. Dynamic Templates Modal
+* **First-Visit Templates**: Present template pickers loading configurations: Blank Canvas, Sprint Planning, Brainstorming grids, or Product Roadmap outlines.
+
+### 7. Region Export Redesign
+* **Marching Ants Spotlight**: Select custom rect boundaries (via keypress `E`) dimming elements outside the scope.
+* **Export Action Menu**: Download high-resolution exports with 1x/2x/3x scale settings in `.png`, `.jpg`, or `.svg` layouts.
+
+---
+
+## 🎹 Keyboard Shortcuts
+
+* `V` — Select Tool
+* `H` — Hand / Pan Tool
+* `N` — Sticky Note Tool
+* `R` — Rectangle Shape
+* `C` — Circle Shape
+* `L` — Line Shape
+* `A` — Arrow Shape
+* `D` — Freehand Pen
+* `T` — Text Entry
+* `F` — Frame Container
+* `S` — Lasso Select
+* `E` — Region Export Box
+* `M` — Show/Hide Minimap
+* `G` — Toggle Grid lines
+* `Esc` — Deselect / Cancel
+* `Del` / `Backspace` — Delete selected elements
+* `Ctrl/Cmd + K` — Command Palette
+* `Ctrl/Cmd + Z` / `Shift + Z` — Undo / Redo
+* `Ctrl/Cmd + D` — Duplicate Selection
+* `Ctrl/Cmd + A` — Select All
+* `Ctrl/Cmd + C` / `V` — Copy & Paste
+* `Ctrl/Cmd + 0` — Fit to Screen offset
+* `Ctrl/Cmd + +/-` — Zoom scale adjustments
+* `Space + Drag` — Shift canvas panning
+
+---
+
+## 🛠️ Verification Tests
+Run the local smoketest verifying UI assets and server structure:
+```bash
+npm test
+```
