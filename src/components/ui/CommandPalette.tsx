@@ -27,24 +27,33 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const commands: Command[] = [
-    { id: 'fit',     label: 'Fit to screen',        shortcut: '⌘0', section: 'Canvas',   action: () => { store.fitToScreen(viewportWidth, viewportHeight); onClose(); } },
-    { id: 'zoom1',   label: 'Zoom to 100%',          shortcut: '',   section: 'Canvas',   action: () => { store.setViewport({ zoom: 1 }); onClose(); } },
-    { id: 'grid',    label: 'Toggle grid',            shortcut: 'G',  section: 'Canvas',   action: () => { store.toggleGrid(); onClose(); } },
-    { id: 'snap',    label: 'Toggle snap',            shortcut: '',   section: 'Canvas',   action: () => { store.toggleSnap(); onClose(); } },
-    { id: 'theme',   label: 'Toggle dark mode',       shortcut: '',   section: 'Canvas',   action: () => { store.toggleTheme(); onClose(); } },
-    { id: 'mini',    label: 'Toggle minimap',         shortcut: 'M',  section: 'Canvas',   action: () => { store.toggleMini(); onClose(); } },
-    { id: 'note',    label: 'Add sticky note',        shortcut: 'N',  section: 'Elements', action: () => { store.setTool('note'); onClose(); } },
-    { id: 'hw',      label: 'Add handwriting',        shortcut: 'W',  section: 'Elements', action: () => { store.setTool('handwriting'); onClose(); } },
-    { id: 'text',    label: 'Add text',               shortcut: 'T',  section: 'Elements', action: () => { store.setTool('text'); onClose(); } },
-    { id: 'rect',    label: 'Draw rectangle',         shortcut: 'R',  section: 'Elements', action: () => { store.setTool('rect'); onClose(); } },
-    { id: 'circle',  label: 'Draw circle',            shortcut: 'C',  section: 'Elements', action: () => { store.setTool('circle'); onClose(); } },
-    { id: 'image',   label: 'Add image',              shortcut: 'I',  section: 'Elements', action: () => { store.setTool('image'); onClose(); } },
-    { id: 'del',     label: 'Delete selected',        shortcut: 'Del',section: 'Elements', action: () => { store.deleteSelected(); onClose(); } },
-    { id: 'dup',     label: 'Duplicate selected',     shortcut: '⌘D', section: 'Elements', action: () => { store.duplicateSelected(); onClose(); } },
-    { id: 'sall',    label: 'Select all',             shortcut: '⌘A', section: 'Elements', action: () => { store.setSelected(store.elements.map(e => e.id)); onClose(); } },
-    { id: 'export',  label: 'Export region',          shortcut: 'E',  section: 'Export',   action: () => { store.setTool('export'); onClose(); } },
-    { id: 'undo',    label: 'Undo',                   shortcut: '⌘Z', section: 'History',  action: () => { store.undo(); onClose(); } },
-    { id: 'redo',    label: 'Redo',                   shortcut: '⌘⇧Z',section: 'History', action: () => { store.redo(); onClose(); } },
+    { id: 'fit', label: 'Fit to screen', shortcut: '⌘0', section: 'Canvas', action: () => { store.fitToScreen(viewportWidth, viewportHeight); onClose(); } },
+    { id: 'zoom1', label: 'Zoom to 100%', shortcut: '', section: 'Canvas', action: () => { store.setViewport({ zoom: 1 }); onClose(); } },
+    { id: 'grid', label: 'Toggle grid', shortcut: 'G', section: 'Canvas', action: () => { store.toggleGrid(); onClose(); } },
+    { id: 'snap', label: 'Toggle snap', shortcut: '', section: 'Canvas', action: () => { store.toggleSnap(); onClose(); } },
+    { id: 'theme', label: 'Toggle dark mode', shortcut: '', section: 'Canvas', action: () => { store.toggleTheme(); onClose(); } },
+    {
+      id: 'layout', label: 'Cycle layout (Canvas/Split/Notes)', shortcut: '⌘\\', section: 'Canvas', action: () => {
+        const modes: ('canvas' | 'split' | 'notes-only')[] = ['canvas', 'split', 'notes-only'];
+        const idx = modes.indexOf(store.viewMode);
+        const next = modes[(idx + 1) % modes.length];
+        store.setViewMode(next);
+        onClose();
+      }
+    },
+    { id: 'mini', label: 'Toggle minimap', shortcut: 'M', section: 'Canvas', action: () => { store.toggleMini(); onClose(); } },
+    { id: 'note', label: 'Add sticky note', shortcut: 'N', section: 'Elements', action: () => { store.setTool('note'); onClose(); } },
+    { id: 'hw', label: 'Add handwriting', shortcut: 'W', section: 'Elements', action: () => { store.setTool('handwriting'); onClose(); } },
+    { id: 'text', label: 'Add text', shortcut: 'T', section: 'Elements', action: () => { store.setTool('text'); onClose(); } },
+    { id: 'rect', label: 'Draw rectangle', shortcut: 'R', section: 'Elements', action: () => { store.setTool('rect'); onClose(); } },
+    { id: 'circle', label: 'Draw circle', shortcut: 'C', section: 'Elements', action: () => { store.setTool('circle'); onClose(); } },
+    { id: 'image', label: 'Add image', shortcut: 'I', section: 'Elements', action: () => { store.setTool('image'); onClose(); } },
+    { id: 'del', label: 'Delete selected', shortcut: 'Del', section: 'Elements', action: () => { store.deleteSelected(); onClose(); } },
+    { id: 'dup', label: 'Duplicate selected', shortcut: '⌘D', section: 'Elements', action: () => { store.duplicateSelected(); onClose(); } },
+    { id: 'sall', label: 'Select all', shortcut: '⌘A', section: 'Elements', action: () => { store.setSelected(store.elements.map(e => e.id)); onClose(); } },
+    { id: 'export', label: 'Export region', shortcut: 'E', section: 'Export', action: () => { store.setTool('export'); onClose(); } },
+    { id: 'undo', label: 'Undo', shortcut: '⌘Z', section: 'History', action: () => { store.undo(); onClose(); } },
+    { id: 'redo', label: 'Redo', shortcut: '⌘⇧Z', section: 'History', action: () => { store.redo(); onClose(); } },
   ];
 
   const filtered = query.trim()
@@ -65,9 +74,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((a) => Math.min(a + 1, allFiltered.length - 1)); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
-    if (e.key === 'Enter')     { e.preventDefault(); if (allFiltered[active]) execute(allFiltered[active]); }
-    if (e.key === 'Escape')    { onClose(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
+    if (e.key === 'Enter') { e.preventDefault(); if (allFiltered[active]) execute(allFiltered[active]); }
+    if (e.key === 'Escape') { onClose(); }
   };
 
   if (!open) return null;

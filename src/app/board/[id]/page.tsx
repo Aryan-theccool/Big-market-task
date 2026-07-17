@@ -15,13 +15,14 @@ import { CommandPalette } from '../../../components/ui/CommandPalette';
 import { RemoteCursors } from '../../../components/collab/RemoteCursors';
 import { TemplateModal, useTemplateModal } from '../../../components/ui/TemplateModal';
 import { useCollabSync } from '../../../hooks/useCollabSync';
+import { RichTextEditor } from '../../../components/editor/RichTextEditor';
 
 interface Toast { id: string; message: string; type: 'info' | 'success' | 'error' | 'warning'; }
 
 const TOAST_COLORS = {
-  info:    { bg: 'rgba(0,122,255,0.15)',  icon: '#007AFF' },
+  info: { bg: 'rgba(0,122,255,0.15)', icon: '#007AFF' },
   success: { bg: 'rgba(52,199,89,0.15)', icon: '#34C759' },
-  error:   { bg: 'rgba(255,59,48,0.15)', icon: '#FF3B30' },
+  error: { bg: 'rgba(255,59,48,0.15)', icon: '#FF3B30' },
   warning: { bg: 'rgba(255,149,0,0.15)', icon: '#FF9500' },
 };
 
@@ -32,9 +33,16 @@ export default function BoardIdPage() {
   const store = useCanvasStore();
   const viewportRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
+  const rightPaneRef = useRef<HTMLDivElement>(null);
+
   const [vpSize, setVpSize] = useState({ w: 1200, h: 800 });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [cmdOpen, setCmdOpen] = useState(false);
+
+  const [mobileTab, setMobileTab] = useState<'notes' | 'canvas'>('canvas');
+  const [isMobile, setIsMobile] = useState(false);
+  const isDraggingRef = useRef(false);
+  const [activeDragging, setActiveDragging] = useState(false);
 
   const [regionStart, setRegionStart] = useState<{ x: number; y: number } | null>(null);
   const [regionBox, setRegionBox] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -53,10 +61,10 @@ export default function BoardIdPage() {
     const type: Toast['type'] = color === '#34C759' || color === '#22C55E' || color === 'success'
       ? 'success'
       : color === '#FF3B30' || color === '#F43F5E' || color === 'error'
-      ? 'error'
-      : color === '#FF9500' || color === '#F59E0B' || color === 'warning'
-      ? 'warning'
-      : 'info';
+        ? 'error'
+        : color === '#FF9500' || color === '#F59E0B' || color === 'warning'
+          ? 'warning'
+          : 'info';
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev.slice(-2), { id, message, type }]);
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3500);
@@ -64,24 +72,77 @@ export default function BoardIdPage() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (boardRef.current) setVpSize({ w: boardRef.current.clientWidth, h: boardRef.current.clientHeight });
+      const el = rightPaneRef.current || boardRef.current;
+      if (el) setVpSize({ w: el.clientWidth, h: el.clientHeight });
     };
     window.addEventListener('resize', handleResize);
     handleResize();
     store.hydrate(roomId);
+
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     const welcomeTimer = setTimeout(() => addToast('Welcome to Inkspace ✦', 'info'), 700);
     return () => {
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('resize', checkMobile);
       clearTimeout(welcomeTimer);
     };
-  }, [roomId, addToast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [roomId, addToast, store.viewMode, store.splitRatio]);
+
+  const handleDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDraggingRef.current = true;
+    setActiveDragging(true);
+    document.body.style.cursor = 'col-resize';
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const totalWidth = window.innerWidth;
+      const percentage = (moveEvent.clientX / totalWidth) * 100;
+
+      const minLeftPct = (280 / totalWidth) * 100;
+      const minRightPct = ((totalWidth - 420) / totalWidth) * 100;
+      const bounded = Math.max(minLeftPct, Math.min(percentage, minRightPct));
+
+      store.setSplitRatio(bounded);
+    };
+
+    const handleUp = () => {
+      isDraggingRef.current = false;
+      setActiveDragging(false);
+      document.body.style.cursor = '';
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+  }, [store]);
+
+  const handleDividerDoubleClick = useCallback(() => {
+    store.setSplitRatio(35);
+  }, [store]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const el = document.activeElement;
-      const isEditing = el?.getAttribute('contenteditable') === 'true' || el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA';
+      const isEditing = el?.getAttribute('contenteditable') === 'true' || el?.tagName === 'INPUT' || el?.tagName === 'TEXTAREA' || el?.classList.contains('ProseMirror');
       if (isEditing) {
         if (e.key === 'Escape') { (el as HTMLElement).blur(); store.setTool('select'); }
+        return;
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+        e.preventDefault();
+        const modes: ('canvas' | 'split' | 'notes-only')[] = ['canvas', 'split', 'notes-only'];
+        const idx = modes.indexOf(store.viewMode);
+        const next = modes[(idx + 1) % modes.length];
+        store.setViewMode(next);
+        addToast(`Layout: ${next === 'canvas' ? 'Canvas Only' : next === 'split' ? 'Split Pane' : 'Notes Only'}`, 'info');
         return;
       }
 
@@ -123,10 +184,10 @@ export default function BoardIdPage() {
       const vpEl = viewportRef.current;
       if (!vpEl) return;
 
-      const overlay   = document.getElementById('region-export-overlay');
-      const toolbar   = document.getElementById('left-toolbar');
-      const minimap   = document.getElementById('inkspace-minimap');
-      const header    = document.getElementById('header-bar');
+      const overlay = document.getElementById('region-export-overlay');
+      const toolbar = document.getElementById('left-toolbar');
+      const minimap = document.getElementById('inkspace-minimap');
+      const header = document.getElementById('header-bar');
       const statusbar = document.getElementById('status-bar');
       [overlay, toolbar, minimap, header, statusbar].forEach((el) => { if (el) el.style.visibility = 'hidden'; });
 
@@ -190,46 +251,132 @@ export default function BoardIdPage() {
   return (
     <div ref={boardRef} className="fixed inset-0 overflow-hidden" style={{ background: 'var(--bg-canvas)' }}>
       {/* Header */}
-      <Header toast={addToast} onOpenHelp={() => {}} onExport={() => setExportModalOpen(true)} viewportRef={viewportRef} />
+      <Header toast={addToast} onOpenHelp={() => { }} onExport={() => setExportModalOpen(true)} viewportRef={viewportRef} />
 
-      {/* Canvas */}
-      <div className="absolute inset-0 top-[52px]" style={{ bottom: 0 }}>
-        <CanvasViewport
-          viewportRef={viewportRef}
-          regionStart={regionStart}
-          setRegionStart={setRegionStart}
-          regionBox={regionBox}
-          setRegionBox={setRegionBox}
-          toast={addToast}
-        />
-      </div>
-
-      {/* Left tool rail (desktop) */}
-      <div className="absolute inset-0 top-[52px] pointer-events-none">
-        <div className="pointer-events-auto">
-          <LeftToolRail />
-        </div>
-      </div>
-
-      {/* Mobile toolbar */}
-      <MobileToolbar />
-
-      {/* Inspector (desktop side rail) */}
-      <div className="absolute top-[52px] right-0 bottom-[32px]" style={{ pointerEvents: 'none' }}>
-        <div style={{ pointerEvents: 'auto' }}>
-          <InspectorPanel />
-        </div>
-      </div>
-
-      {/* Status bar (desktop) */}
-      <StatusBar viewportWidth={vpSize.w} viewportHeight={vpSize.h} />
-
-      {/* Minimap */}
-      {store.showMini && (
-        <div className="absolute bottom-[40px] right-4 z-[9000] hidden md:block">
-          <CanvasMiniMap viewportWidth={vpSize.w} viewportHeight={vpSize.h} />
+      {/* Mobile Tab Selector Row */}
+      {isMobile && store.viewMode !== 'canvas' && (
+        <div className="absolute top-[52px] left-0 right-0 h-10 flex items-center justify-center bg-[var(--bg-panel)] border-b border-[var(--border)] z-40 px-4">
+          <div className="flex bg-[var(--bg-secondary)] rounded-lg p-0.5 w-full max-w-[320px]">
+            <button
+              onClick={() => setMobileTab('notes')}
+              className="flex-1 py-1 text-center font-medium rounded-md transition-all text-xs"
+              style={{
+                background: mobileTab === 'notes' ? 'var(--accent)' : 'transparent',
+                color: mobileTab === 'notes' ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Notes
+            </button>
+            <button
+              onClick={() => setMobileTab('canvas')}
+              className="flex-1 py-1 text-center font-medium rounded-md transition-all text-xs"
+              style={{
+                background: mobileTab === 'canvas' ? 'var(--accent)' : 'transparent',
+                color: mobileTab === 'canvas' ? 'white' : 'var(--text-secondary)',
+                border: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              Canvas
+            </button>
+          </div>
         </div>
       )}
+
+      {/* Main Resizable Split Workspace Panels */}
+      <div
+        className="absolute left-0 right-0 bottom-0"
+        style={{
+          top: isMobile && store.viewMode !== 'canvas' ? 92 : 52,
+          display: 'flex',
+          flexDirection: 'row',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Left Pane - Notes Editor */}
+        {(!isMobile && store.viewMode !== 'canvas') || (isMobile && store.viewMode !== 'canvas' && mobileTab === 'notes') ? (
+          <div
+            style={{
+              width: isMobile ? '100%' : (store.viewMode === 'notes-only' ? '100%' : `${store.splitRatio}%`),
+              minWidth: isMobile ? '100%' : (store.viewMode === 'notes-only' ? '100%' : 280),
+              height: '100%',
+              position: 'relative',
+              zIndex: 10,
+              display: 'flex',
+              flexDirection: 'column',
+              borderRight: (!isMobile && store.viewMode === 'split') ? '0.5px solid var(--border)' : 'none',
+              transition: activeDragging ? 'none' : 'width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}
+          >
+            <RichTextEditor roomId={roomId} className="flex-1 h-full overflow-hidden" />
+          </div>
+        ) : null}
+
+        {/* Divider Handle */}
+        {!isMobile && store.viewMode === 'split' && (
+          <div
+            className="group relative select-none cursor-col-resize flex-shrink-0"
+            style={{ width: 5, zIndex: 30, background: 'transparent' }}
+            onMouseDown={handleDividerMouseDown}
+            onDoubleClick={handleDividerDoubleClick}
+          >
+            <div
+              className="absolute top-0 bottom-0 left-[2px] transition-all bg-[var(--border)] group-hover:bg-[var(--accent)] group-hover:left-[1px] group-hover:w-[3px]"
+              style={{ width: 1 }}
+            />
+          </div>
+        )}
+
+        {/* Right Pane - Coordinate Canvas container */}
+        {(!isMobile && store.viewMode !== 'notes-only') || (isMobile && store.viewMode === 'canvas') || (isMobile && store.viewMode !== 'canvas' && mobileTab === 'canvas') ? (
+          <div
+            ref={rightPaneRef}
+            style={{
+              flex: isMobile ? 'none' : (store.viewMode === 'canvas' ? 1 : (store.viewMode === 'notes-only' ? 0 : 1)),
+              width: isMobile ? '100%' : 'auto',
+              minWidth: isMobile ? '100%' : (store.viewMode === 'canvas' ? 0 : 420),
+              height: '100%',
+              position: 'relative',
+              display: store.viewMode === 'notes-only' && !isMobile ? 'none' : 'block'
+            }}
+          >
+            <CanvasViewport
+              viewportRef={viewportRef}
+              regionStart={regionStart}
+              setRegionStart={setRegionStart}
+              regionBox={regionBox}
+              setRegionBox={setRegionBox}
+              toast={addToast}
+            />
+
+            {/* Left tool rail (desktop) */}
+            <div className="absolute inset-0 pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                <LeftToolRail />
+              </div>
+            </div>
+
+            {/* Inspector (desktop side rail) */}
+            <div className="absolute top-[0px] right-0 bottom-[32px] pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                <InspectorPanel />
+              </div>
+            </div>
+
+            {/* Status bar (desktop) */}
+            <StatusBar viewportWidth={vpSize.w} viewportHeight={vpSize.h} />
+
+            {/* Minimap */}
+            {store.showMini && (
+              <div className="absolute bottom-[40px] right-4 z-[9000] hidden md:block">
+                <CanvasMiniMap viewportWidth={vpSize.w} viewportHeight={vpSize.h} />
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
 
       {/* Real remote cursors */}
       <RemoteCursors />
@@ -267,18 +414,22 @@ export default function BoardIdPage() {
               {(['png', 'jpeg'] as const).map((fmt) => (
                 <button key={fmt} onClick={() => setExportFormat(fmt)}
                   className="rounded-[8px] px-2.5 py-1 transition-all"
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
                     background: exportFormat === fmt ? 'var(--accent)' : 'transparent',
-                    color: exportFormat === fmt ? 'white' : 'var(--text-secondary)' }}
+                    color: exportFormat === fmt ? 'white' : 'var(--text-secondary)'
+                  }}
                 >{fmt.toUpperCase()}</button>
               ))}
               <div style={{ width: '0.5px', height: 16, background: 'var(--border)' }} />
               {[1, 2, 3].map((s) => (
                 <button key={s} onClick={() => setExportScale(s)}
                   className="rounded-[8px] px-2 py-1 transition-all"
-                  style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
+                  style={{
+                    fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer',
                     background: exportScale === s ? 'var(--accent)' : 'transparent',
-                    color: exportScale === s ? 'white' : 'var(--text-secondary)' }}
+                    color: exportScale === s ? 'white' : 'var(--text-secondary)'
+                  }}
                 >{s}×</button>
               ))}
               <div style={{ width: '0.5px', height: 16, background: 'var(--border)' }} />
@@ -288,7 +439,7 @@ export default function BoardIdPage() {
               <button onClick={() => { setRegionBox(null); store.setTool('select'); }}
                 className="icon-button" style={{ width: 28, height: 28, borderRadius: 7 }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
               </button>
             </div>
           </motion.div>
@@ -313,7 +464,7 @@ export default function BoardIdPage() {
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '0.5px solid var(--border)' }}>
                 <span style={{ fontFamily: 'var(--font-ui)', fontSize: 17, fontWeight: 600, color: 'var(--text-primary)' }}>Export Board</span>
                 <button onClick={() => setExportModalOpen(false)} className="icon-button" style={{ width: 28, height: 28, borderRadius: 7 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </div>
               <div className="px-5 py-5 flex flex-col gap-5">
@@ -323,10 +474,12 @@ export default function BoardIdPage() {
                     {[1, 2, 3].map((s) => (
                       <button key={s} onClick={() => setExportScale(s)}
                         className="flex-1 py-2 rounded-[10px] font-semibold transition-all"
-                        style={{ fontFamily: 'var(--font-mono)', fontSize: 13,
+                        style={{
+                          fontFamily: 'var(--font-mono)', fontSize: 13,
                           color: exportScale === s ? 'white' : 'var(--text-secondary)',
                           background: exportScale === s ? 'var(--accent)' : 'var(--bg-secondary)',
-                          border: 'none', cursor: 'pointer' }}
+                          border: 'none', cursor: 'pointer'
+                        }}
                       >{s}×</button>
                     ))}
                   </div>
@@ -335,12 +488,14 @@ export default function BoardIdPage() {
                   {(['png', 'jpeg'] as const).map((fmt) => (
                     <button key={fmt} onClick={() => doFullExport(fmt, exportScale)} disabled={isExporting}
                       className="flex flex-col items-center gap-2 py-4 rounded-[12px] transition-colors"
-                      style={{ background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
-                        cursor: isExporting ? 'wait' : 'pointer', opacity: isExporting ? 0.6 : 1 }}
+                      style={{
+                        background: 'var(--bg-secondary)', border: '0.5px solid var(--border)',
+                        cursor: isExporting ? 'wait' : 'pointer', opacity: isExporting ? 0.6 : 1
+                      }}
                       onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-focus)')}
                       onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
                     >
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>{fmt}</span>
                       <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--text-muted)' }}>{fmt === 'png' ? 'Transparent bg' : 'White/Black bg'}</span>
                     </button>
@@ -363,9 +518,11 @@ export default function BoardIdPage() {
             return (
               <motion.div key={t.id}
                 className="flex items-center gap-3 rounded-[16px]"
-                style={{ background: 'var(--bg-panel)', backdropFilter: 'var(--blur-panel)', WebkitBackdropFilter: 'var(--blur-panel)',
+                style={{
+                  background: 'var(--bg-panel)', backdropFilter: 'var(--blur-panel)', WebkitBackdropFilter: 'var(--blur-panel)',
                   border: '0.5px solid var(--border)', boxShadow: 'var(--shadow-lg)',
-                  padding: '10px 16px 10px 12px', minWidth: 240, maxWidth: 360, pointerEvents: 'auto' }}
+                  padding: '10px 16px 10px 12px', minWidth: 240, maxWidth: 360, pointerEvents: 'auto'
+                }}
                 initial={{ opacity: 0, y: -16, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -8, scale: 0.97 }}

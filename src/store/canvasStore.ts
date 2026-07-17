@@ -54,8 +54,14 @@ interface CanvasState {
   clipboard: CanvasElement[] | null;
   history: { past: string[]; future: string[] };
   roomId: string | null;
+  viewMode: 'canvas' | 'split' | 'notes-only';
+  splitRatio: number;
+  noteTitle: string;
 
   setTheme: (theme: 'light' | 'dark') => void;
+  setViewMode: (mode: 'canvas' | 'split' | 'notes-only') => void;
+  setSplitRatio: (ratio: number) => void;
+  setNoteTitle: (title: string) => void;
   toggleTheme: () => void;
   setBoardName: (name: string) => void;
   setViewport: (patch: Partial<Viewport> | ((v: Viewport) => Viewport)) => void;
@@ -101,6 +107,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   clipboard: null,
   history: { past: [], future: [] },
   roomId: null,
+  viewMode: 'canvas',
+  splitRatio: 35,
+  noteTitle: 'Meeting Notes',
 
   setTheme: (theme) => {
     set({ theme });
@@ -114,6 +123,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   },
 
   setBoardName: (boardName) => { set({ boardName }); get().saveToStorage(); },
+  setViewMode: (viewMode) => { set({ viewMode }); get().saveToStorage(); },
+  setSplitRatio: (splitRatio) => { set({ splitRatio }); get().saveToStorage(); },
+  setNoteTitle: (noteTitle) => { set({ noteTitle }); get().saveToStorage(); },
 
   setViewport: (patch) => {
     set((state) => ({
@@ -246,9 +258,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       return { id: el.id, x: el.x, y: el.y, w: el.w || 100, h: el.h || 60 };
     };
     const bounds = selected_els.map(getBounds);
-    const left   = Math.min(...bounds.map((b) => b.x));
-    const right  = Math.max(...bounds.map((b) => b.x + b.w));
-    const top    = Math.min(...bounds.map((b) => b.y));
+    const left = Math.min(...bounds.map((b) => b.x));
+    const right = Math.max(...bounds.map((b) => b.x + b.w));
+    const top = Math.min(...bounds.map((b) => b.y));
     const bottom = Math.max(...bounds.map((b) => b.y + b.h));
     const cx = (left + right) / 2, cy = (top + bottom) / 2;
     set((state) => ({
@@ -256,10 +268,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
         if (!selected.includes(el.id)) return el;
         const b = bounds.find((it) => it.id === el.id)!;
         const copy = { ...el };
-        if (alignment === 'left')   { copy.x = left; }
-        if (alignment === 'right')  { copy.x = right - b.w; }
+        if (alignment === 'left') { copy.x = left; }
+        if (alignment === 'right') { copy.x = right - b.w; }
         if (alignment === 'center') { copy.x = cx - b.w / 2; }
-        if (alignment === 'top')    { copy.y = top; }
+        if (alignment === 'top') { copy.y = top; }
         if (alignment === 'bottom') { copy.y = bottom - b.h; }
         if (alignment === 'middle') { copy.y = cy - b.h / 2; }
         return copy;
@@ -286,7 +298,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       .sort((a, b) => (axis === 'x' ? a.x - b.x : a.y - b.y));
     const first = items[0], last = items[items.length - 1];
     const startVal = axis === 'x' ? first.x : first.y;
-    const endVal   = axis === 'x' ? last.x  : last.y;
+    const endVal = axis === 'x' ? last.x : last.y;
     const gap = (endVal - startVal) / (items.length - 1);
     set((state) => ({
       elements: state.elements.map((el) => {
@@ -382,6 +394,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
               boardName: data.board.boardName || 'Untitled Board',
               viewport: data.board.viewport || { x: 260, y: 140, zoom: 1 },
               elements: data.board.elements || [],
+              viewMode: data.board.viewMode || 'canvas',
+              splitRatio: data.board.splitRatio !== undefined ? data.board.splitRatio : 35,
+              noteTitle: data.board.noteTitle || 'Meeting Notes',
             });
             return;
           }
@@ -398,6 +413,9 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
           showGrid: data.showGrid !== false,
           snap: !!data.snap,
           showMini: data.showMini !== false,
+          viewMode: data.viewMode || 'canvas',
+          splitRatio: data.splitRatio !== undefined ? data.splitRatio : 35,
+          noteTitle: data.noteTitle || 'Meeting Notes',
         }));
       }
     } catch { /* ignore */ }
@@ -405,16 +423,16 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
 
   saveToStorage: () => {
     if (typeof window === 'undefined') return;
-    const { boardName, viewport, elements, showGrid, snap, showMini, theme, roomId } = get();
+    const { boardName, viewport, elements, showGrid, snap, showMini, theme, roomId, viewMode, splitRatio, noteTitle } = get();
     try {
       localStorage.setItem('inkspace-theme', theme);
-      localStorage.setItem('inkspace-board', JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini }));
-      
+      localStorage.setItem('inkspace-board', JSON.stringify({ boardName, viewport, elements, showGrid, snap, showMini, viewMode, splitRatio, noteTitle }));
+
       if (roomId) {
         fetch(`/api/board/${roomId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ boardName, viewport, elements }),
+          body: JSON.stringify({ boardName, viewport, elements, viewMode, splitRatio, noteTitle }),
         }).catch((err) => console.error('Error auto-saving board to database:', err));
       }
     } catch { /* ignore quota errors */ }
