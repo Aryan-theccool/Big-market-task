@@ -11,6 +11,16 @@
     "signaling": "node node_modules/y-webrtc/bin/server.js"
   },
   "dependencies": {
+    "@tiptap/extension-collaboration": "^3.28.0",
+    "@tiptap/extension-collaboration-cursor": "^2.26.2",
+    "@tiptap/extension-placeholder": "^3.28.0",
+    "@tiptap/extension-task-item": "^3.28.0",
+    "@tiptap/extension-task-list": "^3.28.0",
+    "@tiptap/extension-underline": "^3.28.0",
+    "@tiptap/pm": "^3.28.0",
+    "@tiptap/react": "^3.28.0",
+    "@tiptap/starter-kit": "^3.28.0",
+    "@tiptap/suggestion": "^3.28.0",
     "framer-motion": "^11.2.10",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.379.0",
