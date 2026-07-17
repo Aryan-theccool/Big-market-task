@@ -41,14 +41,17 @@ export async function POST(
     const body = await request.json();
     const fileContent = fs.readFileSync(dbPath, 'utf8');
     const db = JSON.parse(fileContent || '{}');
-    
+
     db[id] = {
       elements: body.elements || [],
       boardName: body.boardName || 'Untitled Board',
       viewport: body.viewport || { x: 260, y: 140, zoom: 1 },
+      viewMode: body.viewMode || 'canvas',
+      splitRatio: body.splitRatio !== undefined ? body.splitRatio : 35,
+      noteTitle: body.noteTitle || 'Meeting Notes',
       updatedAt: new Date().toISOString(),
     };
-    
+
     fs.writeFileSync(dbPath, JSON.stringify(db, null, 2), 'utf8');
     return NextResponse.json({ success: true });
   } catch (error) {

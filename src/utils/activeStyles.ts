@@ -5,6 +5,7 @@ export interface ToolStyle {
   strokeWidth?: number;
   fill?: string;
   roughness?: number;
+  fontSize?: number;
 }
 
 export const activeStylesByTool: Record<string, ToolStyle> = {
