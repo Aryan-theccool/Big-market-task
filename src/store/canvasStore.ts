@@ -1,8 +1,11 @@
 import { create } from 'zustand';
+import { createSmartConnectorSlice, SmartConnectorSlice, DrawingConnectorState } from './smartConnectorSlice';
+export type { SmartConnectorSlice, DrawingConnectorState } from './smartConnectorSlice';
 
 export type ElementType =
   | 'note' | 'rect' | 'circle' | 'line' | 'arrow'
-  | 'draw' | 'text' | 'handwriting' | 'frame' | 'image';
+  | 'draw' | 'text' | 'handwriting' | 'frame' | 'image'
+  | 'smart-connector';
 
 export interface CanvasElement {
   id: string;
@@ -29,6 +32,24 @@ export interface CanvasElement {
   fontFamily?: string;
   align?: 'left' | 'center' | 'right';
   opacity?: number;
+
+  // Smart Connector specific properties
+  sourceElementId?: string;
+  sourceAnchor?: string;
+  targetElementId?: string;
+  targetAnchor?: string;
+  routingMode?: string;
+  routingEngine?: string;
+  waypoints?: any[];
+  computedPath?: string;
+  cornerRadius?: number;
+  pathVersion?: number;
+  labels?: any[];
+  strokeColor?: string;
+  strokeDash?: string;
+  startMarker?: string;
+  endMarker?: string;
+  meta?: any;
   flipH?: boolean;
   flipV?: boolean;
   locked?: boolean;
@@ -39,6 +60,26 @@ export interface Viewport {
   x: number;
   y: number;
   zoom: number;
+}
+
+export interface DiagramRegistryEntry {
+  diagramId: string;
+  codeBlockId: string;         // CodeMirror block node ID in TipTap doc
+  canvasElementIds: string[];  // All canvas element IDs generated
+  frameElementId: string;      // Containing frame element ID
+  layoutEngine: 'dagre' | 'elk' | 'grid' | 'radial';
+  theme: string;
+  lastCompiledAt: number;
+  sourceHash: string;          // Hash of source code for change detection
+  syncMode: 'manual' | 'live';
+}
+
+export interface ParseError {
+  line: number;
+  column: number;
+  message: string;
+  severity: 'error' | 'warning' | 'info';
+  suggestion?: string;
 }
 
 interface CanvasState {
@@ -58,10 +99,35 @@ interface CanvasState {
   splitRatio: number;
   noteTitle: string;
 
+  // Markdown Editor State
+  markdownViewMode: 'edit' | 'preview' | 'split';
+  isHistoryOpen: boolean;
+  isToolbarVisible: boolean;
+  wordCount: number;
+  charCount: number;
+  lastSavedAt: number | null;
+  isDirty: boolean;
+  activeBlockId: string | null;
+  selectedCommentId: string | null;
+  isImportModalOpen: boolean;
+  isExportMenuOpen: boolean;
+  selectedSnapshotId: string | null;
+
   setTheme: (theme: 'light' | 'dark') => void;
   setViewMode: (mode: 'canvas' | 'split' | 'notes-only') => void;
   setSplitRatio: (ratio: number) => void;
   setNoteTitle: (title: string) => void;
+  setMarkdownViewMode: (mode: 'edit' | 'preview' | 'split') => void;
+  openHistory: () => void;
+  closeHistory: () => void;
+  setWordCount: (word: number, char: number) => void;
+  setActiveBlock: (blockId: string | null) => void;
+  selectComment: (commentId: string | null) => void;
+  setImportModalOpen: (open: boolean) => void;
+  setExportMenuOpen: (open: boolean) => void;
+  selectSnapshot: (id: string | null) => void;
+  markDirty: () => void;
+  markSaved: () => void;
   toggleTheme: () => void;
   setBoardName: (name: string) => void;
   setViewport: (patch: Partial<Viewport> | ((v: Viewport) => Viewport)) => void;
@@ -90,11 +156,40 @@ interface CanvasState {
   sendToBack: (id: string) => void;
   bringForward: (id: string) => void;
   sendBackward: (id: string) => void;
+
+  // Diagram Parser State
+  diagrams: Record<string, DiagramRegistryEntry>;
+  compilingDiagramId: string | null;
+  compileProgress: number;
+  compileErrors: Record<string, ParseError[]>;
+  selectedDiagramId: string | null;
+  hoveredDiagramElementId: string | null;
+  isLayoutPickerOpen: boolean;
+  isThemePickerOpen: boolean;
+  defaultLayoutEngine: 'dagre' | 'elk' | 'grid' | 'radial';
+  defaultTheme: 'system' | 'ocean' | 'forest' | 'sunset' | 'mono';
+  defaultSyncMode: 'manual' | 'live';
+  animateEntrance: boolean;
+
+  // Diagram Parser Actions
+  registerDiagram: (entry: DiagramRegistryEntry) => void;
+  updateDiagramRegistry: (diagramId: string, updates: Partial<DiagramRegistryEntry>) => void;
+  removeDiagram: (diagramId: string) => void;
+  setCompiling: (diagramId: string | null) => void;
+  setCompileErrors: (diagramId: string, errors: ParseError[]) => void;
+  selectDiagram: (diagramId: string | null) => void;
+  setDefaultLayoutEngine: (engine: 'dagre' | 'elk' | 'grid' | 'radial') => void;
+  setDefaultTheme: (theme: string) => void;
+  reRenderDiagram: (diagramId: string) => Promise<void>;
+  reRenderAllOutOfSync: () => Promise<void>;
 }
+
+export type CanvasStoreType = CanvasState & SmartConnectorSlice;
 
 const uid = () => 'el_' + Math.random().toString(36).slice(2, 9);
 
-export const useCanvasStore = create<CanvasState>((set, get) => ({
+export const useCanvasStore = create<CanvasState & SmartConnectorSlice>((set, get) => ({
+  ...createSmartConnectorSlice(set, get),
   theme: 'light',
   boardName: 'Untitled Board',
   viewport: { x: 260, y: 140, zoom: 1 },
@@ -107,9 +202,37 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   clipboard: null,
   history: { past: [], future: [] },
   roomId: null,
+
+  // Diagram Parser State
+  diagrams: {},
+  compilingDiagramId: null,
+  compileProgress: 0,
+  compileErrors: {},
+  selectedDiagramId: null,
+  hoveredDiagramElementId: null,
+  isLayoutPickerOpen: false,
+  isThemePickerOpen: false,
+  defaultLayoutEngine: 'dagre',
+  defaultTheme: 'system',
+  defaultSyncMode: 'manual',
+  animateEntrance: true,
   viewMode: 'canvas',
   splitRatio: 35,
   noteTitle: 'Meeting Notes',
+
+  // Markdown Editor defaults
+  markdownViewMode: 'edit',
+  isHistoryOpen: false,
+  isToolbarVisible: true,
+  wordCount: 0,
+  charCount: 0,
+  lastSavedAt: null,
+  isDirty: false,
+  activeBlockId: null,
+  selectedCommentId: null,
+  isImportModalOpen: false,
+  isExportMenuOpen: false,
+  selectedSnapshotId: null,
 
   setTheme: (theme) => {
     set({ theme });
@@ -126,6 +249,45 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setViewMode: (viewMode) => { set({ viewMode }); get().saveToStorage(); },
   setSplitRatio: (splitRatio) => { set({ splitRatio }); get().saveToStorage(); },
   setNoteTitle: (noteTitle) => { set({ noteTitle }); get().saveToStorage(); },
+
+  // Markdown editor actions
+  setMarkdownViewMode: (markdownViewMode) => { set({ markdownViewMode }); },
+  openHistory: () => { set({ isHistoryOpen: true }); },
+  closeHistory: () => { set({ isHistoryOpen: false }); },
+  setWordCount: (wordCount, charCount) => { set({ wordCount, charCount }); },
+  setActiveBlock: (activeBlockId) => { set({ activeBlockId }); },
+  selectComment: (selectedCommentId) => { set({ selectedCommentId }); },
+  setImportModalOpen: (isImportModalOpen) => { set({ isImportModalOpen }); },
+  setExportMenuOpen: (isExportMenuOpen) => { set({ isExportMenuOpen }); },
+  selectSnapshot: (selectedSnapshotId) => { set({ selectedSnapshotId }); },
+  markDirty: () => { set({ isDirty: true }); },
+  markSaved: () => { set({ isDirty: false, lastSavedAt: Date.now() }); },
+
+  // Diagram Parser Actions
+  registerDiagram: (entry) => set((state) => ({ diagrams: { ...state.diagrams, [entry.diagramId]: entry } })),
+  updateDiagramRegistry: (diagramId, updates) => set((state) => {
+    const entry = state.diagrams[diagramId];
+    if (!entry) return {};
+    return { diagrams: { ...state.diagrams, [diagramId]: { ...entry, ...updates } } };
+  }),
+  removeDiagram: (diagramId) => set((state) => {
+    const next = { ...state.diagrams };
+    delete next[diagramId];
+    return { diagrams: next };
+  }),
+  setCompiling: (compilingDiagramId) => set({ compilingDiagramId }),
+  setCompileErrors: (diagramId, errors) => set((state) => ({ compileErrors: { ...state.compileErrors, [diagramId]: errors } })),
+  selectDiagram: (selectedDiagramId) => set({ selectedDiagramId }),
+  setDefaultLayoutEngine: (defaultLayoutEngine) => set({ defaultLayoutEngine }),
+  setDefaultTheme: (defaultTheme) => set({ defaultTheme: defaultTheme as any }),
+  reRenderDiagram: async (diagramId) => {
+    const emitter = (window as any).__diagramReRenderEmitter;
+    if (emitter) emitter(diagramId);
+  },
+  reRenderAllOutOfSync: async () => {
+    const emitter = (window as any).__diagramReRenderAllEmitter;
+    if (emitter) emitter();
+  },
 
   setViewport: (patch) => {
     set((state) => ({
