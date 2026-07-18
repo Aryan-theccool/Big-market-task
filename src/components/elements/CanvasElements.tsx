@@ -24,8 +24,8 @@ function getFreehandPath(points: { x: number; y: number }[], stroke: number, col
 
 // ─── Note colours ─────────────────────────────────────────────
 const NOTE_COLORS: Record<string, string> = {
-  yellow: '#FEF3B0', pink:   '#FECDD3', blue:   '#BFDBFE',
-  green:  '#BBF7D0', purple: '#DDD6FE', orange: '#FED7AA', white: '#FAFAF9',
+  yellow: '#FEF3B0', pink: '#FECDD3', blue: '#BFDBFE',
+  green: '#BBF7D0', purple: '#DDD6FE', orange: '#FED7AA', white: '#FAFAF9',
 };
 const NOTE_COLOR_KEYS = Object.keys(NOTE_COLORS);
 
@@ -190,8 +190,8 @@ export const HandwritingText: React.FC<ElementProps> = ({ element, isSelected, o
         border: isEditing
           ? '1px dashed rgba(99,102,241,0.5)'
           : isSelected
-          ? '1px dashed rgba(99,102,241,0.3)'
-          : '1px solid transparent',
+            ? '1px dashed rgba(99,102,241,0.3)'
+            : '1px solid transparent',
         borderRadius: 6,
         padding: '4px 8px',
         cursor: isEditing ? 'text' : 'move',
@@ -281,9 +281,13 @@ export const TextElement: React.FC<ElementProps> = ({ element, isSelected, onPoi
 // ═════════════════════════════════════════════════════════════
 //  ROUGH SHAPE (rect, circle, line, arrow, frame)
 // ═════════════════════════════════════════════════════════════
-interface RoughShapeProps extends ElementProps {}
+interface RoughShapeProps extends ElementProps {
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  isDiagramFrame?: boolean;
+  isLinkedSelected?: boolean;
+}
 
-export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onPointerDown }) => {
+export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onPointerDown, onDoubleClick, isDiagramFrame, isLinkedSelected }) => {
   const svgRef = useRef<SVGSVGElement>(null);
 
   const strokeColor = element.stroke || 'var(--rough-stroke)';
@@ -298,7 +302,7 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
   let bx: number, by: number, bw: number, bh: number;
   let lx1 = 0, ly1 = 0, lx2 = 0, ly2 = 0;
 
-  if (isLine) {
+  if (isLine && !element.points?.length) {
     const minX = Math.min(element.x, element.x2 ?? element.x);
     const minY = Math.min(element.y, element.y2 ?? element.y);
     bx = minX; by = minY;
@@ -306,7 +310,7 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
     bh = Math.max(1, Math.abs((element.y2 ?? element.y) - element.y));
     lx1 = element.x - minX; ly1 = element.y - minY;
     lx2 = (element.x2 ?? element.x) - minX; ly2 = (element.y2 ?? element.y) - minY;
-  } else if (isDraw) {
+  } else if ((isDraw || isLine) && element.points?.length) {
     const pts = element.points || [];
     if (pts.length === 0) return null;
     const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
@@ -363,23 +367,48 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
         node = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
         break;
       case 'arrow': {
-        const lineNode = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
-        svg.appendChild(lineNode);
-        // Manual arrowhead
-        const angle = Math.atan2(ly2 - ly1, lx2 - lx1);
-        const arrowLen = Math.min(18, Math.hypot(lx2 - lx1, ly2 - ly1) * 0.4);
-        const a1 = angle + 2.8, a2 = angle - 2.8;
-        const ah1x = lx2 + Math.cos(a1) * arrowLen;
-        const ah1y = ly2 + Math.sin(a1) * arrowLen;
-        const ah2x = lx2 + Math.cos(a2) * arrowLen;
-        const ah2y = ly2 + Math.sin(a2) * arrowLen;
-        const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        arrowHead.setAttribute('d', `M${ah1x},${ah1y} L${lx2},${ly2} L${ah2x},${ah2y}`);
-        arrowHead.setAttribute('stroke', strokeColor);
-        arrowHead.setAttribute('stroke-width', String(strokeW));
-        arrowHead.setAttribute('stroke-linecap', 'round');
-        arrowHead.setAttribute('fill', 'none');
-        svg.appendChild(arrowHead);
+        const pts = element.points || [];
+        if (pts.length > 1) {
+          const localPts = pts.map((p) => [p.x - bx, p.y - by] as [number, number]);
+          const lineNode = rc.linearPath(localPts, { ...opts, fill: 'none' });
+          svg.appendChild(lineNode);
+
+          const last = pts[pts.length - 1];
+          const prev = pts[pts.length - 2];
+          const angle = Math.atan2(last.y - prev.y, last.x - prev.x);
+          const arrowLen = Math.min(18, Math.hypot(last.x - prev.x, last.y - prev.y) * 0.4);
+          const a1 = angle + 2.8, a2 = angle - 2.8;
+          const ah1x = (last.x - bx) + Math.cos(a1) * arrowLen;
+          const ah1y = (last.y - by) + Math.sin(a1) * arrowLen;
+          const ah2x = (last.x - bx) + Math.cos(a2) * arrowLen;
+          const ah2y = (last.y - by) + Math.sin(a2) * arrowLen;
+
+          const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          arrowHead.setAttribute('d', `M${ah1x},${ah1y} L${last.x - bx},${last.y - by} L${ah2x},${ah2y}`);
+          arrowHead.setAttribute('stroke', strokeColor);
+          arrowHead.setAttribute('stroke-width', String(strokeW));
+          arrowHead.setAttribute('stroke-linecap', 'round');
+          arrowHead.setAttribute('fill', 'none');
+          svg.appendChild(arrowHead);
+        } else {
+          const lineNode = rc.line(lx1, ly1, lx2, ly2, { ...opts, fill: 'none' });
+          svg.appendChild(lineNode);
+          // Manual arrowhead
+          const angle = Math.atan2(ly2 - ly1, lx2 - lx1);
+          const arrowLen = Math.min(18, Math.hypot(lx2 - lx1, ly2 - ly1) * 0.4);
+          const a1 = angle + 2.8, a2 = angle - 2.8;
+          const ah1x = lx2 + Math.cos(a1) * arrowLen;
+          const ah1y = ly2 + Math.sin(a1) * arrowLen;
+          const ah2x = lx2 + Math.cos(a2) * arrowLen;
+          const ah2y = ly2 + Math.sin(a2) * arrowLen;
+          const arrowHead = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          arrowHead.setAttribute('d', `M${ah1x},${ah1y} L${lx2},${ly2} L${ah2x},${ah2y}`);
+          arrowHead.setAttribute('stroke', strokeColor);
+          arrowHead.setAttribute('stroke-width', String(strokeW));
+          arrowHead.setAttribute('stroke-linecap', 'round');
+          arrowHead.setAttribute('fill', 'none');
+          svg.appendChild(arrowHead);
+        }
         return;
       }
       default:
@@ -393,7 +422,7 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
     if (!isDraw) return '';
     const rawPath = getFreehandPath(element.points || [], strokeW, strokeColor);
     if (!rawPath) return '';
-    
+
     // Shift path coordinates to be local to the envelope box
     return rawPath.split(' ').map((v) => {
       if (v.includes(',')) {
@@ -444,6 +473,7 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
         filter: isSelected ? 'drop-shadow(0 2px 8px rgba(99,102,241,0.18))' : undefined,
       }}
       onPointerDown={onPointerDown}
+      onDoubleClick={onDoubleClick}
     >
       {element.type === 'frame' && (
         <foreignObject x={8} y={-22} width={200} height={28} className="overflow-visible">
@@ -453,13 +483,31 @@ export const RoughShape: React.FC<RoughShapeProps> = ({ element, isSelected, onP
               background: 'var(--bg-panel)', border: '1px solid var(--border)',
               borderRadius: 999, padding: '2px 10px',
               fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 600,
-              color: 'var(--accent)', backdropFilter: 'blur(12px)',
+              color: isDiagramFrame ? 'var(--accent)' : 'var(--accent)',
+              backdropFilter: 'blur(12px)',
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            ⬡ {element.text || 'Frame'}
+            {isDiagramFrame ? '📐' : '⬡'} {element.text || 'Frame'}
+            {isDiagramFrame && (
+              <span style={{ fontSize: 9, opacity: 0.6, marginLeft: 4 }}>double-click to edit</span>
+            )}
           </div>
         </foreignObject>
+      )}
+
+      {/* Pulsing linked-selection glow ring for diagram frames */}
+      {isLinkedSelected && isDiagramFrame && (
+        <rect
+          x={-2} y={-2}
+          width={svgW + 4} height={svgH + 4}
+          fill="none"
+          stroke="rgba(99,102,241,0.75)"
+          strokeWidth={2.5}
+          strokeDasharray="8 4"
+          rx={6}
+          className="marching-ants"
+        />
       )}
     </svg>
   );
@@ -527,11 +575,11 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
   if (!elements.length) return null;
 
   const getBounds = (el: CanvasElement) => {
-    if (el.type === 'line' || el.type === 'arrow') {
+    if ((el.type === 'line' || el.type === 'arrow') && !el.points?.length) {
       const x = Math.min(el.x, el.x2 ?? el.x), y = Math.min(el.y, el.y2 ?? el.y);
       return { x, y, w: Math.max(1, Math.abs((el.x2 ?? el.x) - el.x)), h: Math.max(1, Math.abs((el.y2 ?? el.y) - el.y)) };
     }
-    if (el.type === 'draw' && el.points?.length) {
+    if ((el.type === 'draw' || el.type === 'line' || el.type === 'arrow') && el.points?.length) {
       const xs = el.points.map((p) => p.x), ys = el.points.map((p) => p.y);
       return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(1, Math.max(...xs) - Math.min(...xs)), h: Math.max(1, Math.max(...ys) - Math.min(...ys)) };
     }
@@ -543,12 +591,12 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
   const minY = Math.min(...bounds.map((b) => b.y));
   const maxX = Math.max(...bounds.map((b) => b.x + b.w));
   const maxY = Math.max(...bounds.map((b) => b.y + b.h));
-  
+
   let w = maxX - minX;
   let h = maxY - minY;
   let offsetX = 0;
   let offsetY = 0;
-  
+
   if (w < 8) {
     offsetX = (8 - w) / 2;
     w = 8;
@@ -562,16 +610,16 @@ export const SelectionBox: React.FC<SelectionBoxProps> = ({ elements, onResizeSt
   const isLineType = elements.length === 1 && ['line', 'arrow', 'draw'].includes(single.type);
   const rot = elements.length === 1 && !isLineType ? (single.rot || 0) : 0;
 
-  const handles = ['nw','n','ne','e','se','s','sw','w'];
+  const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
   const handlePos: Record<string, { left: string; top: string; cursor: string }> = {
-    nw: { left: '0',    top: '0',    cursor: 'nwse-resize' },
-    n:  { left: '50%',  top: '0',    cursor: 'ns-resize'   },
-    ne: { left: '100%', top: '0',    cursor: 'nesw-resize' },
-    e:  { left: '100%', top: '50%',  cursor: 'ew-resize'   },
+    nw: { left: '0', top: '0', cursor: 'nwse-resize' },
+    n: { left: '50%', top: '0', cursor: 'ns-resize' },
+    ne: { left: '100%', top: '0', cursor: 'nesw-resize' },
+    e: { left: '100%', top: '50%', cursor: 'ew-resize' },
     se: { left: '100%', top: '100%', cursor: 'nwse-resize' },
-    s:  { left: '50%',  top: '100%', cursor: 'ns-resize'   },
-    sw: { left: '0',    top: '100%', cursor: 'nesw-resize' },
-    w:  { left: '0',    top: '50%',  cursor: 'ew-resize'   },
+    s: { left: '50%', top: '100%', cursor: 'ns-resize' },
+    sw: { left: '0', top: '100%', cursor: 'nesw-resize' },
+    w: { left: '0', top: '50%', cursor: 'ew-resize' },
   };
 
   return (

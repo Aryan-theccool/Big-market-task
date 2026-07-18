@@ -6,6 +6,13 @@ import { StickyNote, HandwritingText, TextElement, RoughShape, ImageElement, Sel
 import { compressAndResizeImage } from '../../utils/imageHelper';
 import { useImageDrop } from '../../hooks/useImageDrop';
 import { activeStylesByTool } from '../../utils/activeStyles';
+import { useDiagramBiLink, emitFocusEditor } from '../../hooks/useDiagramBiLink';
+import { useConnectorRerouter } from '../../hooks/useConnectorRerouter';
+import { ConnectorArrowMarkers } from '../SmartConnector/ConnectorArrowMarkers';
+import { SmartConnectorElement } from '../SmartConnector/SmartConnectorElement';
+import { AnchorDots } from '../SmartConnector/AnchorDots';
+import { ConnectorPreview } from '../SmartConnector/ConnectorPreview';
+import { findNearestAnchor, findElementUnderCursor } from '../../lib/routing/SnapDetector';
 
 const uid = () => 'el_' + Math.random().toString(36).slice(2, 9);
 
@@ -53,7 +60,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     const activeStyles = activeStylesByTool['draw'] || {};
     const strokeW = activeStyles.strokeWidth ?? 3;
     let strokeColor = activeStyles.stroke || 'var(--rough-stroke)';
-    
+
     // Resolve CSS variable if needed
     if (strokeColor.startsWith('var(')) {
       strokeColor = getComputedStyle(document.documentElement).getPropertyValue(
@@ -67,7 +74,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     ctx.lineWidth = strokeW;
 
     ctx.beginPath();
-    
+
     // Helper to translate world coordinates to current viewport canvas coordinates
     const getScreenPoint = (p: { x: number; y: number }) => ({
       x: p.x * store.viewport.zoom + store.viewport.x,
@@ -121,6 +128,12 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
   // Hydrate on mount
   useEffect(() => { store.hydrate(); }, []);
+
+  // Bidirectional diagram-canvas highlight linking
+  useDiagramBiLink();
+
+  // Smart connector re-routing watcher
+  useConnectorRerouter();
 
   // ── Touch events (pinch zoom + two-finger pan) ──────────────
   useEffect(() => {
@@ -287,7 +300,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
     if (store.activeTool === 'draw') {
       store.pushHistory();
-      
+
       // Initialize draft canvas buffer dimensions scaled by devicePixelRatio for razor-sharp Retina sketching!
       const canvas = draftCanvasRef.current;
       if (canvas && viewportRef.current) {
@@ -311,13 +324,13 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       activePointsRef.current = [pt];
       lastDrawnIndexRef.current = 0;
       drawingRef.current = { id: 'temp_draw', start: pt };
-      
+
       // Add the active drawing visual optimization styling overrides class to body
       document.body.classList.add('is-drawing');
       return;
     }
 
-    if (['rect','circle','line','arrow','frame'].includes(store.activeTool)) {
+    if (['rect', 'circle', 'line', 'arrow', 'frame'].includes(store.activeTool)) {
       store.pushHistory();
       const elId = uid();
       const isLineType = store.activeTool === 'line' || store.activeTool === 'arrow';
@@ -328,12 +341,12 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         ...(isLineType
           ? { x2: pt.x + 1, y2: pt.y + 1, stroke: activeStyles.stroke || 'var(--rough-stroke)', strokeWidth: activeStyles.strokeWidth ?? 2 }
           : {
-              w: 10, h: 10,
-              fill: activeStyles.fill || 'var(--rough-fill)',
-              stroke: activeStyles.stroke || 'var(--rough-stroke)',
-              strokeWidth: activeStyles.strokeWidth ?? 2,
-              roughness: activeStyles.roughness ?? 1.2,
-            }),
+            w: 10, h: 10,
+            fill: activeStyles.fill || 'var(--rough-fill)',
+            stroke: activeStyles.stroke || 'var(--rough-stroke)',
+            strokeWidth: activeStyles.strokeWidth ?? 2,
+            roughness: activeStyles.roughness ?? 1.2,
+          }),
       };
       store.setElements((prev) => [...prev, newEl]);
       store.setSelected([elId]);
@@ -392,7 +405,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       if (d.kind === 'resize') {
         store.setElements((prev) => prev.map((el) => {
           const orig = d.originals.find((o: any) => o.id === el.id);
-          if (!orig || ['line','arrow','draw'].includes(el.type)) return el;
+          if (!orig || ['line', 'arrow', 'draw'].includes(el.type)) return el;
           let nx = orig.b.x, ny = orig.b.y, nw = orig.b.w, nh = orig.b.h;
           const h = orig.handle;
           if (h.includes('e')) nw = orig.b.w + dx;
@@ -414,7 +427,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
       if (d.kind === 'rotate') {
         store.setElements((prev) => prev.map((el) => {
           const orig = d.originals.find((o: any) => o.id === el.id);
-          if (!orig || ['line','arrow','draw'].includes(el.type)) return el;
+          if (!orig || ['line', 'arrow', 'draw'].includes(el.type)) return el;
           const ang = Math.atan2(pt.y - (orig.b.y + orig.b.h / 2), pt.x - (orig.b.x + orig.b.w / 2));
           let deg = orig.rot + (ang - orig.angle) * (180 / Math.PI);
           if (e.shiftKey) deg = Math.round(deg / 15) * 15;
@@ -448,7 +461,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
       store.setElements((prev) => prev.map((el) => {
         if (el.id !== dr.id) return el;
-        if (['rect','circle','frame'].includes(el.type)) {
+        if (['rect', 'circle', 'frame'].includes(el.type)) {
           const norm = normRect(dr.start, pt);
           return { ...el, x: norm.x, y: norm.y, w: norm.w, h: norm.h };
         }
@@ -484,6 +497,21 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
   // ── Pointer Up ───────────────────────────────────────────────
   const handlePointerUp = (e: React.PointerEvent) => {
+    e.preventDefault();
+
+    if (store.drawingConnector?.isActive) {
+      if (store.drawingConnector.snapTarget) {
+        store.finishDrawingConnector(
+          store.drawingConnector.snapTarget.elementId,
+          store.drawingConnector.snapTarget,
+          store.elements
+        );
+      } else {
+        store.cancelDrawingConnector();
+      }
+      return;
+    }
+
     dragRef.current = null;
 
     if (drawingRef.current) {
@@ -503,7 +531,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
 
         const rawPts = activePointsRef.current;
         const pts = simplifyPoints(rawPts, 1.2);
-        
+
         if (pts.length >= 2) {
           const elId = uid();
           const activeStyles = activeStylesByTool['draw'] || {};
@@ -527,10 +555,10 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
             ctx.clearRect(0, 0, canvas.width, canvas.height);
           }
         }
-        
+
         activePointsRef.current = [];
         lastDrawnIndexRef.current = 0;
-        
+
         // Remove active drawing styling optimization class from body
         document.body.classList.remove('is-drawing');
       } else {
@@ -624,7 +652,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
     .filter(Boolean) as CanvasElement[];
 
   const dotSize = 24 * store.viewport.zoom;
-  const isDrawingTool = ['rect','circle','line','arrow','frame','draw','lasso','export','handwriting','image'].includes(store.activeTool);
+  const isDrawingTool = ['rect', 'circle', 'line', 'arrow', 'frame', 'draw', 'lasso', 'export', 'handwriting', 'image'].includes(store.activeTool);
 
   return (
     <div
@@ -635,8 +663,8 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         cursor: store.activeTool === 'hand' || spacePressed
           ? 'grab'
           : store.activeTool === 'handwriting'
-          ? 'text'
-          : isDrawingTool ? 'crosshair' : 'default',
+            ? 'text'
+            : isDrawingTool ? 'crosshair' : 'default',
         backgroundColor: 'var(--bg-canvas)',
       }}
       onPointerDown={handlePointerDown as any}
@@ -682,11 +710,23 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
           const isSel = store.selected.includes(el.id);
           const onPD = (e: React.PointerEvent) => handleElementPointerDown(el, e);
 
-          if (el.type === 'note')        return <StickyNote       key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
-          if (el.type === 'handwriting') return <HandwritingText  key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
-          if (el.type === 'text')        return <TextElement       key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
-          if (el.type === 'image')       return <ImageElement      key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
-          return                                <RoughShape        key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
+          // For diagram frame elements: double-click focuses the source code block
+          const isDiagramFrame = el.type === 'frame' && el.id.startsWith('diagram-frame-');
+          const onDC = isDiagramFrame
+            ? (e: React.MouseEvent) => {
+              e.stopPropagation();
+              const diagramId = el.id.replace('diagram-frame-', '');
+              store.selectDiagram(diagramId);
+              emitFocusEditor(diagramId);
+            }
+            : undefined;
+
+          if (el.type === 'note') return <StickyNote key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
+          if (el.type === 'handwriting') return <HandwritingText key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
+          if (el.type === 'text') return <TextElement key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
+          if (el.type === 'image') return <ImageElement key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} />;
+          if (el.type === 'smart-connector') return null; // rendered in separate SVG layer below
+          return <RoughShape key={el.id} element={el} isSelected={isSel} onPointerDown={onPD} onDoubleClick={onDC} isDiagramFrame={isDiagramFrame} isLinkedSelected={isDiagramFrame && store.selectedDiagramId === el.id.replace('diagram-frame-', '')} />;
         })}
 
         {store.selected.length > 0 && store.activeTool === 'select' && (
@@ -699,6 +739,61 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
         )}
 
       </div>
+
+      {/* ─── Smart Connector SVG layer ─────────────────────────── */}
+      <ConnectorArrowMarkers />
+      {Object.values(store.connectors || {}).length > 0 && (
+        <svg
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            pointerEvents: 'none', zIndex: 8500, overflow: 'visible',
+          }}
+        >
+          {Object.values(store.connectors || {}).map((conn) => (
+            <SmartConnectorElement
+              key={conn.id}
+              connector={conn}
+              viewport={store.viewport}
+              isSelected={store.selectedConnectorIds?.includes(conn.id) || false}
+              isHovered={store.hoveredConnectorId === conn.id}
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                store.selectConnector(conn.id);
+                store.setSelected([]);
+              }}
+              onContextMenu={(e, id) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // Connector right-click will be handled by existing context menu system
+              }}
+            />
+          ))}
+        </svg>
+      )}
+
+      {/* ─── Anchor dots overlay (shown when arrow tool active) ── */}
+      {store.activeTool === 'arrow' && store.hoveredElementId && (() => {
+        const el = store.elements.find(e => e.id === store.hoveredElementId);
+        if (!el) return null;
+        return (
+          <AnchorDots
+            element={el}
+            viewport={store.viewport}
+            snapAnchor={null}
+            onAnchorClick={(anchor) => {
+              store.startDrawingConnector(el.id, anchor);
+            }}
+          />
+        );
+      })()}
+
+      {/* ─── Connector draw preview ──────────────────────────────── */}
+      {store.drawingConnector?.isActive && (
+        <ConnectorPreview
+          path={store.drawingConnector.previewPath}
+          viewport={store.viewport}
+        />
+      )}
 
       {/* Draft Canvas Layer for 120fps hardware-accelerated drawing preview */}
       <canvas
@@ -742,7 +837,7 @@ export const CanvasViewport: React.FC<CanvasViewportProps> = ({
               className="marching-ants"
             />
             {/* Corner accents */}
-            {[['0,0','8,0 0,0 0,8'], ['100%,0','-8,0 0,0 0,8'], ['100%,100%','-8,0 0,0 0,-8'], ['0,100%','8,0 0,0 0,-8']].map(([_, pts], i) => (
+            {[['0,0', '8,0 0,0 0,8'], ['100%,0', '-8,0 0,0 0,8'], ['100%,100%', '-8,0 0,0 0,-8'], ['0,100%', '8,0 0,0 0,-8']].map(([_, pts], i) => (
               <polyline key={i} points={pts} fill="none" stroke="rgba(99,102,241,1)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
             ))}
           </svg>

@@ -15,7 +15,7 @@ import { CommandPalette } from '../../../components/ui/CommandPalette';
 import { RemoteCursors } from '../../../components/collab/RemoteCursors';
 import { TemplateModal, useTemplateModal } from '../../../components/ui/TemplateModal';
 import { useCollabSync } from '../../../hooks/useCollabSync';
-import { RichTextEditor } from '../../../components/editor/RichTextEditor';
+import { MarkdownEditor } from '../../../components/MarkdownEditor/MarkdownEditor';
 
 interface Toast { id: string; message: string; type: 'info' | 'success' | 'error' | 'warning'; }
 
@@ -310,7 +310,7 @@ export default function BoardIdPage() {
               transition: activeDragging ? 'none' : 'width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
           >
-            <RichTextEditor roomId={roomId} className="flex-1 h-full overflow-hidden" />
+            <MarkdownEditor roomId={roomId} className="flex-1 h-full overflow-hidden" />
           </div>
         ) : null}
 
