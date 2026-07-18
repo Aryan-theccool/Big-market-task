@@ -89,6 +89,37 @@ Simulates a collaborative multiplayer environment when testing solo:
 * `Ctrl/Cmd + 0` — Fit to Screen offset
 * `Ctrl/Cmd + +/-` — Zoom scale adjustments
 * `Space + Drag` — Shift canvas panning
+* `Ctrl/Cmd + \` — Cycle workspace layout (Canvas / Split / Notes Only)
+
+### Markdown Editor Shortcuts
+* `Ctrl/Cmd + Shift + P` — Toggle Markdown View Mode (Edit / Preview / Split)
+* `Ctrl/Cmd + Shift + K` — Insert Code Block at cursor
+* `Ctrl/Cmd + Shift + H` — Open Document History Panel
+* `Ctrl/Cmd + Shift + E` — Export Markdown document
+
+---
+
+## 📝 Markdown Document Editor
+
+A full-featured collaborative markdown editor integrated into the Split-Screen left pane:
+
+### Features
+* **Three View Modes**: Toggle via pill tabs (`✏️ Edit`, `👁 Preview`, `⬛ Split`) or `Ctrl/Cmd + Shift + P`.
+* **Formatting Toolbar**: Two-row HIG-styled toolbar — headings, lists, task checkboxes, code blocks, quotes, tables, images, highlight colors, and text alignment.
+* **Table Insert Grid**: Hover to pick up to 8×8 table dimensions from an interactive grid picker.
+* **Highlight Color Swatch**: 8 Apple system colors for text highlighting in a dropdown popover.
+* **Real-Time Y.js Sync**: All markdown content syncs across peers via WebRTC — block-level collaboration cursors show each user's position.
+* **Markdown Preview**: Rendered read-only output using `marked`, with Mermaid.js diagram blocks and KaTeX math equation rendering.
+* **Table of Contents**: Auto-generated sticky TOC sidebar in Preview mode from H1–H3 headings.
+* **Document History**: Auto-snapshots every 50 edits + manual named versions stored in Y.js, with one-click restore.
+* **Markdown Import / Export**: Import `.md` files or export as Markdown; copy raw markdown to clipboard; PDF via `window.print()`.
+* **Canvas Image Snapshot**: Insert a live snapshot of the current canvas viewport as an image block.
+* **Document Action Menu (···)**: Import, export, copy link, and clear document with confirmation.
+* **Save Status Indicator**: Live "Unsaved" / "Saved X min ago" status in the title bar.
+
+### How to Enable
+1. Click the **split-pane icon** in the top toolbar or press `Ctrl/Cmd + \` to switch to **Split** or **Notes Only** mode.
+2. The left pane loads the Markdown Editor. The right pane remains the coordinate canvas.
 
 ---
 
