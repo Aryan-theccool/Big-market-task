@@ -54,6 +54,45 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
     { id: 'export', label: 'Export region', shortcut: 'E', section: 'Export', action: () => { store.setTool('export'); onClose(); } },
     { id: 'undo', label: 'Undo', shortcut: '⌘Z', section: 'History', action: () => { store.undo(); onClose(); } },
     { id: 'redo', label: 'Redo', shortcut: '⌘⇧Z', section: 'History', action: () => { store.redo(); onClose(); } },
+    {
+      id: 'diag-render', label: 'Re-render selected diagram', shortcut: '', section: 'Diagrams',
+      action: () => {
+        const win = window as any;
+        if (win.__diagramReRenderEmitter && store.selectedDiagramId) {
+          win.__diagramReRenderEmitter(store.selectedDiagramId);
+        }
+        toast?.('Rendering diagram…', '#6366F1');
+        onClose();
+      },
+    },
+    {
+      id: 'diag-layout-dagre', label: 'Switch layout → Dagre (hierarchical)', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultLayoutEngine('dagre'); toast?.('Layout: Dagre', '#007AFF'); onClose(); },
+    },
+    {
+      id: 'diag-layout-elk', label: 'Switch layout → ELK (complex)', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultLayoutEngine('elk'); toast?.('Layout: ELK', '#007AFF'); onClose(); },
+    },
+    {
+      id: 'diag-layout-grid', label: 'Switch layout → Grid (matrix)', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultLayoutEngine('grid'); toast?.('Layout: Grid', '#007AFF'); onClose(); },
+    },
+    {
+      id: 'diag-layout-radial', label: 'Switch layout → Radial (mindmap)', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultLayoutEngine('radial'); toast?.('Layout: Radial', '#007AFF'); onClose(); },
+    },
+    {
+      id: 'diag-theme-system', label: 'Diagram theme → System', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultTheme('system'); toast?.('Theme: System', '#34C759'); onClose(); },
+    },
+    {
+      id: 'diag-theme-ocean', label: 'Diagram theme → Ocean', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultTheme('ocean'); toast?.('Theme: Ocean', '#007AFF'); onClose(); },
+    },
+    {
+      id: 'diag-theme-forest', label: 'Diagram theme → Forest', shortcut: '', section: 'Diagrams',
+      action: () => { store.setDefaultTheme('forest'); toast?.('Theme: Forest', '#34C759'); onClose(); },
+    },
   ];
 
   const filtered = query.trim()

@@ -7,12 +7,12 @@ import { saveActiveStyle } from '../../utils/activeStyles';
 
 const NOTE_COLORS: Record<string, { bg: string; dark: string; text: string }> = {
   yellow: { bg: '#FFF59D', dark: '#F9A825', text: '#4A3800' },
-  pink:   { bg: '#FCE4EC', dark: '#E91E63', text: '#4A0020' },
-  blue:   { bg: '#E3F2FD', dark: '#1976D2', text: '#003060' },
-  green:  { bg: '#E8F5E9', dark: '#388E3C', text: '#003010' },
+  pink: { bg: '#FCE4EC', dark: '#E91E63', text: '#4A0020' },
+  blue: { bg: '#E3F2FD', dark: '#1976D2', text: '#003060' },
+  green: { bg: '#E8F5E9', dark: '#388E3C', text: '#003010' },
   purple: { bg: '#F3E5F5', dark: '#7B1FA2', text: '#2A003A' },
   orange: { bg: '#FFF3E0', dark: '#F57C00', text: '#3A1800' },
-  white:  { bg: '#FAFAFA', dark: '#E0E0E0', text: '#1C1C1E' },
+  white: { bg: '#FAFAFA', dark: '#E0E0E0', text: '#1C1C1E' },
 };
 
 /* ─── Row ─── */
@@ -99,14 +99,23 @@ export const InspectorPanel: React.FC = () => {
   const store = useCanvasStore();
   const { selected, elements, updateElement } = store;
 
-  const isOpen = selected.length > 0;
+  const isOpen = selected.length > 0 || (store.selectedConnectorIds && store.selectedConnectorIds.length > 0);
   const el = elements.find((e) => e.id === selected[0]);
+  const connector = store.selectedConnectorIds ? store.connectors?.[store.selectedConnectorIds[0]] : null;
 
   const upd = (patch: Partial<CanvasElement>) => {
     if (!el) return;
     store.pushHistory();
     updateElement(el.id, patch);
     saveActiveStyle(el.type, patch);
+  };
+
+  const updConn = (patch: any) => {
+    if (!connector) return;
+    store.updateConnector(connector.id, patch);
+    if (patch.routingMode || patch.cornerRadius) {
+      store.rerouteConnector(connector.id, store.elements, true);
+    }
   };
 
   return (
@@ -130,18 +139,121 @@ export const InspectorPanel: React.FC = () => {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
             <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-              {TYPE_LABELS[el.type] || el.type}
+              {connector ? 'Connector' : (TYPE_LABELS[el?.type || ''] || el?.type)}
             </p>
             <button
-              onClick={() => store.setSelected([])}
+              onClick={() => { store.setSelected([]); store.selectConnector?.(null); }}
               className="icon-button"
               style={{ width: 24, height: 24, borderRadius: 6 }}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
             </button>
           </div>
 
           <div className="flex-1 p-4 space-y-5 overflow-y-auto">
+
+            {/* Smart Connector Controls */}
+            {connector && (
+              <>
+                <div>
+                  <SectionTitle>Routing</SectionTitle>
+                  <GroupedList>
+                    <ListRow label="Mode">
+                      <select
+                        value={connector.routingMode}
+                        onChange={(e) => updConn({ routingMode: e.target.value })}
+                        style={{ background: 'transparent', color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', fontSize: 14, outline: 'none', border: 'none', textAlign: 'right' }}
+                      >
+                        <option value="orthogonal">Orthogonal</option>
+                        <option value="elbow">Elbow</option>
+                        <option value="curved">Curved</option>
+                        <option value="straight">Straight</option>
+                      </select>
+                    </ListRow>
+                    <ListRow label="Radius">
+                      <Slider value={connector.cornerRadius} onChange={(v) => updConn({ cornerRadius: v })} min={0} max={20} />
+                    </ListRow>
+                  </GroupedList>
+                  <button
+                    onClick={() => store.rerouteConnector(connector.id, store.elements, true)}
+                    className="secondary-button justify-center w-full mt-2"
+                    style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8 }}
+                  >
+                    ↻ Re-route Now
+                  </button>
+                </div>
+
+                <div>
+                  <SectionTitle>Stroke</SectionTitle>
+                  <GroupedList>
+                    <ListRow label="Color"><ColorSwatch value={connector.strokeColor} onChange={(v) => updConn({ strokeColor: v })} /></ListRow>
+                    <ListRow label="Width"><Slider value={connector.strokeWidth} onChange={(v) => updConn({ strokeWidth: v })} min={1} max={8} step={0.5} /></ListRow>
+                    <ListRow label="Style">
+                      <select
+                        value={connector.strokeDash}
+                        onChange={(e) => updConn({ strokeDash: e.target.value })}
+                        style={{ background: 'transparent', color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', fontSize: 14, outline: 'none', border: 'none', textAlign: 'right' }}
+                      >
+                        <option value="solid">Solid</option>
+                        <option value="dashed">Dashed</option>
+                        <option value="dotted">Dotted</option>
+                      </select>
+                    </ListRow>
+                    <ListRow label="Opacity"><Slider value={connector.opacity * 100} onChange={(v) => updConn({ opacity: v / 100 })} min={10} max={100} /></ListRow>
+                  </GroupedList>
+                </div>
+
+                <div>
+                  <SectionTitle>Markers</SectionTitle>
+                  <GroupedList>
+                    <ListRow label="Start">
+                      <select
+                        value={connector.startMarker}
+                        onChange={(e) => updConn({ startMarker: e.target.value })}
+                        style={{ background: 'transparent', color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', fontSize: 14, outline: 'none', border: 'none', textAlign: 'right' }}
+                      >
+                        <option value="none">None</option>
+                        <option value="arrow">Arrow</option>
+                        <option value="open-arrow">Open Arrow</option>
+                        <option value="circle">Circle</option>
+                        <option value="diamond">Diamond</option>
+                        <option value="cross">Cross</option>
+                        <option value="bar">Bar</option>
+                      </select>
+                    </ListRow>
+                    <ListRow label="End">
+                      <select
+                        value={connector.endMarker}
+                        onChange={(e) => updConn({ endMarker: e.target.value })}
+                        style={{ background: 'transparent', color: 'var(--text-primary)', fontFamily: 'var(--font-ui)', fontSize: 14, outline: 'none', border: 'none', textAlign: 'right' }}
+                      >
+                        <option value="none">None</option>
+                        <option value="arrow">Arrow</option>
+                        <option value="open-arrow">Open Arrow</option>
+                        <option value="circle">Circle</option>
+                        <option value="diamond">Diamond</option>
+                        <option value="cross">Cross</option>
+                        <option value="bar">Bar</option>
+                      </select>
+                    </ListRow>
+                  </GroupedList>
+                </div>
+
+                {/* Delete connector */}
+                <button
+                  onClick={() => { store.deleteConnector(connector.id); store.selectConnector(null); }}
+                  className="w-full rounded-[12px] py-3 transition-colors mt-6"
+                  style={{
+                    background: 'var(--bg-secondary)', border: 'none', cursor: 'pointer',
+                    fontSize: 15, fontWeight: 500, color: 'var(--red)', fontFamily: 'var(--font-ui)',
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,59,48,0.08)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                >
+                  Delete Connector
+                </button>
+              </>
+            )}
 
             {/* Note colors */}
             {el.type === 'note' && (
@@ -168,7 +280,7 @@ export const InspectorPanel: React.FC = () => {
             )}
 
             {/* Appearance — shapes */}
-            {['rect', 'circle', 'frame'].includes(el.type) && (
+            {el && ['rect', 'circle', 'frame'].includes(el.type) && (
               <div>
                 <SectionTitle>Appearance</SectionTitle>
                 <GroupedList>
@@ -184,7 +296,7 @@ export const InspectorPanel: React.FC = () => {
             )}
 
             {/* Line / Arrow / Draw */}
-            {['line', 'arrow', 'draw'].includes(el.type) && (
+            {el && ['line', 'arrow', 'draw'].includes(el.type) && (
               <div>
                 <SectionTitle>{el.type === 'draw' ? 'Pencil' : 'Line'}</SectionTitle>
                 <GroupedList>
@@ -195,7 +307,7 @@ export const InspectorPanel: React.FC = () => {
             )}
 
             {/* Text / Handwriting */}
-            {['handwriting', 'text'].includes(el.type) && (
+            {el && ['handwriting', 'text'].includes(el.type) && (
               <div>
                 <SectionTitle>Typography</SectionTitle>
                 <GroupedList>
@@ -206,7 +318,7 @@ export const InspectorPanel: React.FC = () => {
             )}
 
             {/* Image */}
-            {el.type === 'image' && (
+            {el && el.type === 'image' && (
               <div>
                 <SectionTitle>Image</SectionTitle>
                 <div className="grid grid-cols-2 gap-2">
@@ -221,78 +333,86 @@ export const InspectorPanel: React.FC = () => {
             )}
 
             {/* Opacity */}
-            <div>
-              <SectionTitle>Appearance</SectionTitle>
-              <GroupedList>
-                <ListRow label="Opacity">
-                  <Slider value={(el.opacity ?? 1) * 100} onChange={(v) => upd({ opacity: v / 100 })} min={0} max={100} />
-                </ListRow>
-                {!['line', 'arrow', 'draw'].includes(el.type) && (
-                  <ListRow label="Rotation">
-                    <Slider value={el.rot || 0} onChange={(v) => upd({ rot: v })} min={-180} max={180} />
+            {el && (
+              <div>
+                <SectionTitle>Appearance</SectionTitle>
+                <GroupedList>
+                  <ListRow label="Opacity">
+                    <Slider value={(el.opacity ?? 1) * 100} onChange={(v) => upd({ opacity: v / 100 })} min={0} max={100} />
                   </ListRow>
-                )}
-              </GroupedList>
-            </div>
+                  {!['line', 'arrow', 'draw'].includes(el.type) && (
+                    <ListRow label="Rotation">
+                      <Slider value={el.rot || 0} onChange={(v) => upd({ rot: v })} min={-180} max={180} />
+                    </ListRow>
+                  )}
+                </GroupedList>
+              </div>
+            )}
 
             {/* Position */}
-            <div>
-              <SectionTitle>Position</SectionTitle>
-              <GroupedList>
-                <div className="flex items-center px-4 py-2.5 gap-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
-                  <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>X</span>
-                  <NumInput value={el.x} onChange={(v) => upd({ x: v })} />
-                  <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>Y</span>
-                  <NumInput value={el.y} onChange={(v) => upd({ y: v })} />
-                </div>
-                {el.w !== undefined && el.h !== undefined && (
-                  <div className="flex items-center px-4 py-2.5 gap-3">
-                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>W</span>
-                    <NumInput value={el.w} onChange={(v) => upd({ w: Math.max(20, v) })} min={20} />
-                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>H</span>
-                    <NumInput value={el.h} onChange={(v) => upd({ h: Math.max(20, v) })} min={20} />
+            {el && (
+              <div>
+                <SectionTitle>Position</SectionTitle>
+                <GroupedList>
+                  <div className="flex items-center px-4 py-2.5 gap-3" style={{ borderBottom: '0.5px solid var(--border)' }}>
+                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>X</span>
+                    <NumInput value={el.x} onChange={(v) => upd({ x: v })} />
+                    <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>Y</span>
+                    <NumInput value={el.y} onChange={(v) => upd({ y: v })} />
                   </div>
-                )}
-              </GroupedList>
-            </div>
+                  {el.w !== undefined && el.h !== undefined && (
+                    <div className="flex items-center px-4 py-2.5 gap-3">
+                      <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>W</span>
+                      <NumInput value={el.w} onChange={(v) => upd({ w: Math.max(20, v) })} min={20} />
+                      <span style={{ width: 16, fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 12 }}>H</span>
+                      <NumInput value={el.h} onChange={(v) => upd({ h: Math.max(20, v) })} min={20} />
+                    </div>
+                  )}
+                </GroupedList>
+              </div>
+            )}
 
             {/* Arrange */}
-            <div>
-              <SectionTitle>Arrange</SectionTitle>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { label: '↑ Forward',  action: () => store.bringForward(el.id) },
-                  { label: '↓ Backward', action: () => store.sendBackward(el.id) },
-                  { label: '⇈ Bring Front', action: () => store.bringToFront(el.id) },
-                  { label: '⇊ Send Back',   action: () => store.sendToBack(el.id) },
-                ].map(({ label, action }) => (
-                  <button
-                    key={label} onClick={action}
-                    className="secondary-button justify-center"
-                    style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8 }}
-                  >{label}</button>
-                ))}
+            {el && (
+              <div>
+                <SectionTitle>Arrange</SectionTitle>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { label: '↑ Forward', action: () => store.bringForward(el.id) },
+                    { label: '↓ Backward', action: () => store.sendBackward(el.id) },
+                    { label: '⇈ Bring Front', action: () => store.bringToFront(el.id) },
+                    { label: '⇊ Send Back', action: () => store.sendToBack(el.id) },
+                  ].map(({ label, action }) => (
+                    <button
+                      key={label} onClick={action}
+                      className="secondary-button justify-center"
+                      style={{ fontSize: 12, padding: '6px 8px', borderRadius: 8 }}
+                    >{label}</button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Delete */}
-            <button
-              onClick={store.deleteSelected}
-              className="w-full rounded-[12px] py-3 transition-colors"
-              style={{
-                background: 'var(--bg-secondary)',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 15,
-                fontWeight: 500,
-                color: 'var(--red)',
-                fontFamily: 'var(--font-ui)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,59,48,0.08)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
-            >
-              Delete
-            </button>
+            {el && (
+              <button
+                onClick={store.deleteSelected}
+                className="w-full rounded-[12px] py-3 transition-colors mt-6"
+                style={{
+                  background: 'var(--bg-secondary)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: 15,
+                  fontWeight: 500,
+                  color: 'var(--red)',
+                  fontFamily: 'var(--font-ui)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,59,48,0.08)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+              >
+                Delete Selected
+              </button>
+            )}
           </div>
         </motion.div>
       )}
